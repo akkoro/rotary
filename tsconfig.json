@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "outDir": "./lib",
+    "declaration": true,
+    "module": "commonjs",
+    "target": "es6",
+    "inlineSourceMap": true,
+    "strict": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "lib": ["dom", "esnext"]
+  },
+  "include": ["src"],
+  "exclude": [
+    "node_modules"
+  ]
+}
