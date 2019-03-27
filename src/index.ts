@@ -1,6 +1,6 @@
 import "reflect-metadata";
 
-import {find, Query} from "./Query";
+import {query} from "./Query";
 import {Attribute, Entity, Ref, Searchable, Unique} from "./Entity";
 
 @Entity('User')
@@ -24,14 +24,22 @@ class User {
     account: Ref;
 }
 
-// find(User).with('name').filterBy({last: 'Bear'}).then(result => {
-//     console.log(result);
-// });
-//
-// find(User).with('email').equals('clem@scramblestudios.co.uk').then(result => {
+query(User).with('name').equals({first: 'Clem', last: 'Fandango'}).then(result => {
+    console.log(result);
+});
+
+// query(User).with('name').filterByComposite({last: 'Bear'}).then(result => {
 //     console.log(result);
 // });
 
-find(User).then(result => {
+query(User).byId('360b99c1-341f-4ad4-a8b9-1f63668f421f', result => {
     console.log(result);
-});
+}).catch();
+
+// query(User).with('email').equals('clem@scramblestudios.co.uk').then(result => {
+//     console.log(result);
+// });
+
+// query(User).then(result => {
+//     console.log(result);
+// });

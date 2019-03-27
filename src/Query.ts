@@ -6,43 +6,22 @@ import QueryInput = DocumentClient.QueryInput;
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
 
-// TODO: use as base class and specialize for each attribute type
-class Condition<EntityType> {
-    public type: string;
-    public value: object|string;
-    public key: Key<EntityType>;
-    public query: Query<EntityType>;
+interface ICondition<EntityType> {
+    value: object|string;
+    key: Key<EntityType>;
+    query: Query<EntityType>;
 
-    public async then(cb: (result: Array<EntityType>) => void) {
-        if (this.query.target) {
-            if (Reflect.hasMetadata('name:unique', this.query.target, this.key.name)) {
-                if (this.type !== 'equals') {
-                    throw new Error('Unique attributes must be queried by equals()');
-                }
+    equals: object;
+    filterByComposite: object;
+    // contains: object;
+}
 
-            } else if (Reflect.hasMetadata('name:searchable', this.query.target, this.key.name)) {
-                if (this.type === 'like') {
-                    throw new Error('cannot query Searchable attributes by like()');
-                }
-            } else {
-                throw new Error(`unable to query by attribute '${this.key.name}'`);
-            }
+class UniqueAttributeCondition<EntityType> implements ICondition<EntityType> {
+    public value = null;
+    public key = null;
+    public query = null;
 
-            const params = this[this.type];
-            // console.log(params);
-
-            const result = await db.query(params).promise();
-
-            if (result.Items.length) {
-                const item = result.Items[0];
-                this.query.target['id'] = item['pk'].split('#')[1];
-                cb([this.query.target]);
-            }
-        }
-    }
-
-    private get equals() {
-        // FIXME: this doesn't work for Searchable
+    public get equals(): object {
         const sk = this.value;
         return {
             TableName: 'rddb',
@@ -57,14 +36,35 @@ class Condition<EntityType> {
         };
     }
 
-    private get filterBy() {
-        let data;
-        if (typeof this.value === 'object') {
-            data = attrToComposite(this.value);
-        } else {
-            data = this.value;
-        }
+    // @ts-ignore
+    public get filterByComposite(): object {
+        throw new Error('Unique attributes must be queried by equals()');
+    }
+}
 
+class SearchableAttributeCondition<EntityType> implements ICondition<EntityType> {
+    public value = null;
+    public key = null;
+    public query = null;
+
+    public get equals(): object {
+        const sk = `${this.query.target['tableName'].toUpperCase()}:${this.key.name}`;
+        return {
+            TableName: 'rddb',
+            IndexName: 'sk-data-index',
+            KeyConditionExpression: '#sk = :sk and #data = :data',
+            ExpressionAttributeNames: {
+                '#sk': 'sk',
+                '#data': 'data'
+            },
+            ExpressionAttributeValues: {
+                ':sk': sk,
+                ':data': (typeof this.value === 'object') ? attrToComposite(this.value) : this.value
+            }
+        };
+    }
+
+    public get filterByComposite(): object {
         const sk = `${this.query.target['tableName'].toUpperCase()}:${this.key.name}`;
         return {
             TableName: 'rddb',
@@ -76,40 +76,103 @@ class Condition<EntityType> {
             },
             ExpressionAttributeValues: {
                 ':sk': sk,
-                ':data': data
+                ':data': (typeof this.value === 'object') ? attrToComposite(this.value) : this.value
             }
         };
     }
+}
 
-    private get like() {
-        let filterBy = '';
-        let values = {};
-        if (typeof this.value === 'object') {
-            Object.keys(this.value).forEach(key => {
-                filterBy = `contains(#${this.key.name},:${key})${filterBy.length ? `or ${filterBy}` : ''}`;
-                values = {
-                    ...values,
-                    [`:${key}`]: this.value[key]
-                };
-            });
-        }
+class Condition<EntityType, AttributeType extends ICondition<EntityType>> {
+    public type: string;
 
-        const sk = this.query.target['tableName'].toUpperCase();
-        return {
-            TableName: 'rddb',
-            IndexName: 'sk-data-index',
-            KeyConditionExpression: `#sk = :sk`,
-            ExpressionAttributeNames: {
-                '#sk': 'sk',
-                [`#${this.key.name}`]: `${this.key.name}`
-            },
-            ExpressionAttributeValues: {
-                ':sk': sk,
-                ...values
-            },
-            FilterExpression: filterBy
-        };
+    private _key: Key<EntityType>;
+    private _query: Query<EntityType>;
+    private _value: object|string;
+    private readonly impl: AttributeType;
+
+    constructor(impl: AttributeType) {
+        this.impl = impl;
     }
+
+    public get key() {
+        return this._key;
+    }
+
+    public set key(key: Key<EntityType>) {
+        this._key = key;
+        this.impl.key = key;
+    }
+
+    public get query() {
+        return this._query;
+    }
+
+    public set query(query: Query<EntityType>) {
+        this._query = query;
+        this.impl.query = query;
+    }
+
+    public get value() {
+        return this._value;
+    }
+
+    public set value(v: object|string) {
+        this._value = v;
+        this.impl.value = v;
+    }
+
+    public async then(cb: (result: Array<EntityType>) => void) {
+        if (this.query.target) {
+            if (Reflect.hasMetadata('name:searchable', this.query.target, this.key.name)) {
+                if (this.type === 'like') {
+                    throw new Error('cannot query Searchable attributes by like()');
+                }
+            } else {
+                throw new Error(`unable to query by attribute '${this.key.name}'`);
+            }
+
+            const params = this.impl[this.type];
+            // console.log(params);
+
+            const result = await db.query(params).promise();
+
+            if (result.Items.length) {
+                cb(result.Items.map(item => {
+                    return makeEntity(this.query['ctor'])(item['pk'].split('#')[1]);
+                }));
+            }
+        }
+    }
+
+    // private get like() {
+    //     let filterBy = '';
+    //     let values = {};
+    //     if (typeof this.value === 'object') {
+    //         Object.keys(this.value).forEach(key => {
+    //             filterBy = `contains(#${this.key.name},:${key})${filterBy.length ? `or ${filterBy}` : ''}`;
+    //             values = {
+    //                 ...values,
+    //                 [`:${key}`]: this.value[key]
+    //             };
+    //         });
+    //     }
+    //
+    //     const sk = this.query.target['tableName'].toUpperCase();
+    //     return {
+    //         TableName: 'rddb',
+    //         IndexName: 'sk-data-index',
+    //         KeyConditionExpression: `#sk = :sk`,
+    //         ExpressionAttributeNames: {
+    //             '#sk': 'sk',
+    //             [`#${this.key.name}`]: `${this.key.name}`
+    //         },
+    //         ExpressionAttributeValues: {
+    //             ':sk': sk,
+    //             ...values
+    //         },
+    //         FilterExpression: filterBy
+    //     };
+    // }
 }
 
 class Key<EntityType> {
@@ -124,9 +187,9 @@ class Key<EntityType> {
         return condition;
     }
 
-    public filterBy(value: object|string) {
+    public filterByComposite(value: object) {
         const condition = this.baseCondition;
-        condition.type = 'filterBy';
+        condition.type = 'filterByComposite';
         condition.value = value;
 
         return condition;
@@ -141,7 +204,12 @@ class Key<EntityType> {
     }
 
     private get baseCondition() {
-        const condition = new Condition();
+        let condition;
+        if (Reflect.hasMetadata('name:unique', this.query.target, this.name)) {
+            condition = new Condition(new UniqueAttributeCondition());
+        } else if (Reflect.hasMetadata('name:searchable', this.query.target, this.name)) {
+            condition = new Condition(new SearchableAttributeCondition());
+        }
         condition.key = this;
         condition.query = this.query;
 
@@ -169,6 +237,26 @@ export class Query<EntityType> {
         return key;
     }
 
+    public async byId(id: string, cb: (result: EntityType) => void) {
+        const pk = `${this.target['tableName'].toUpperCase()}#${id}`;
+        const params = {
+            TableName: 'rddb',
+            KeyConditionExpression: `#pk = :pk`,
+            ExpressionAttributeNames: {
+                '#pk': 'pk'
+            },
+            ExpressionAttributeValues: {
+                ':pk': pk
+            }
+        };
+
+        const result = await db.query(params).promise();
+        if (result.Items && result.Items.length) {
+            const item = result.Items[0];
+            cb(makeEntity(this.ctor)(id));
+        }
+    }
+
     public async then(cb: (result: Array<EntityType>) => void) {
         const sk = this.target['tableName'].toUpperCase();
         const params = {
@@ -190,6 +278,6 @@ export class Query<EntityType> {
     }
 }
 
-export function find<EntityType>(target: EntityConstructor): Query<EntityType> {
+export function query<EntityType>(target: EntityConstructor): Query<EntityType> {
     return new Query(target, new target());
 }

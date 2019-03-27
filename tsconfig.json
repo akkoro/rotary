@@ -3,7 +3,7 @@
     "outDir": "./lib",
     "declaration": true,
     "module": "commonjs",
-    "target": "es6",
+    "target": "es2018",
     "inlineSourceMap": true,
     "strict": false,
     "experimentalDecorators": true,
