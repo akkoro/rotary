@@ -95,7 +95,7 @@ export function Searchable(target: any, key: string) {
     Reflect.defineMetadata('name:searchable', key, target, key);
 }
 
-export function Ref(type: any) {
+export function Ref(type: EntityConstructor) {
     return function (target: any, key: string) {
         Reflect.defineMetadata('name:ref', key, target, key);
         Reflect.defineMetadata('ref:target', type, target, key);
@@ -103,7 +103,7 @@ export function Ref(type: any) {
 }
 
 // `any` type here since we check metadata for decoration at runtime
-export function makeEntity(target: EntityConstructor) {
+export function makeEntity(target: any) {
     if (!Reflect.hasMetadata('table:name', target)) {
         throw new Error('class has not been decorated with @Entity');
     }
