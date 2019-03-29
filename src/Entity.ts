@@ -11,75 +11,74 @@ declare interface Entity {
 
 export type Attribute = string | object | undefined;
 export type Ref = Entity | undefined;
+export type EntityConstructor = { new(...args: any[]): {} };
 
-export function Entity(name: string) {
-    return function <T extends { new(...args: any[]): {} }>(constructor: T) {
-        Reflect.defineMetadata('table:name', name, constructor);
+export function Entity<T extends { new(...args: any[]): {} }>(constructor: T) {
+    Reflect.defineMetadata('table:name', constructor.name, constructor);
 
-        return class extends constructor {
-            [attribute: string]: any;
+    return class extends constructor {
+        [attribute: string]: any;
 
-            public readonly id: string;
+        public readonly id: string;
 
-            constructor(...args: any[]) {
-                super(args);
-                this.id = args[0];
-            }
-
-            public get tableName() {
-                return Reflect.getMetadata('table:name', this.constructor);
-            }
-
-            // @ts-ignore
-            public store(cascade?: boolean) {
-                console.log(`Storing: ${this.tableName}`);
-                console.log(`ID: ${this.id}`);
-
-                const items: object[] = [];
-
-                items.push(getRootItem(this));
-
-                Object.keys(this).forEach(key => {
-                    if (Reflect.hasMetadata('name:unique', this, key)) {
-                        console.log(key.toUpperCase());
-                        items.push(getUniqueItem(this, key));
-                    }
-
-                    if (Reflect.hasMetadata('name:searchable', this, key)) {
-                        console.log(key.toUpperCase());
-                        items.push(getSearchableItem(this, key));
-                        if (attrIsComposite(key)) {
-                            console.log(key.toUpperCase() + '-SCHEMA');
-                            items.push(getSchemaItem(this, key));
-                        }
-                    }
-
-                    if (Reflect.hasMetadata('name:ref', this, key)) {
-                        console.log(key.toUpperCase());
-                        items.push(getRefItem(this, key));
-                    }
-                });
-
-                const params = {
-                    RequestItems: {
-                        'rddb': items.map(body => {
-                            return {
-                                PutRequest: {
-                                    Item: body
-                                }
-                            }
-                        })
-                    }
-                };
-
-                db.batchWrite(params).promise().then(response => console.log(response))
-                    .catch(e => console.log(e));
-
-                // TODO: if (cascade), call store() on all Ref's
-
-            }
+        constructor(...args: any[]) {
+            super(args);
+            this.id = args[0];
         }
-    };
+
+        public get tableName() {
+            return Reflect.getMetadata('table:name', this.constructor);
+        }
+
+        // @ts-ignore
+        public store(cascade?: boolean) {
+            console.log(`Storing: ${this.tableName}`);
+            console.log(`ID: ${this.id}`);
+
+            const items: object[] = [];
+
+            items.push(getRootItem(this));
+
+            Object.keys(this).forEach(key => {
+                if (Reflect.hasMetadata('name:unique', this, key)) {
+                    console.log(key.toUpperCase());
+                    items.push(getUniqueItem(this, key));
+                }
+
+                if (Reflect.hasMetadata('name:searchable', this, key)) {
+                    console.log(key.toUpperCase());
+                    items.push(getSearchableItem(this, key));
+                    if (attrIsComposite(key)) {
+                        console.log(key.toUpperCase() + '-SCHEMA');
+                        items.push(getSchemaItem(this, key));
+                    }
+                }
+
+                if (Reflect.hasMetadata('name:ref', this, key)) {
+                    console.log(key.toUpperCase());
+                    items.push(getRefItem(this, key));
+                }
+            });
+
+            const params = {
+                RequestItems: {
+                    'rddb': items.map(body => {
+                        return {
+                            PutRequest: {
+                                Item: body
+                            }
+                        }
+                    })
+                }
+            };
+
+            db.batchWrite(params).promise().then(response => console.log(response))
+                .catch(e => console.log(e));
+
+            // TODO: if (cascade), call store() on all Ref's
+
+        }
+    }
 }
 
 /* name decorators */
@@ -96,14 +95,16 @@ export function Searchable(target: any, key: string) {
     Reflect.defineMetadata('name:searchable', key, target, key);
 }
 
-export function Ref(target: any, key: string) {
-    Reflect.defineMetadata('name:ref', key, target, key);
+export function Ref(type: any) {
+    return function (target: any, key: string) {
+        Reflect.defineMetadata('name:ref', key, target, key);
+        Reflect.defineMetadata('ref:target', type, target, key);
+    }
 }
 
 // `any` type here since we check metadata for decoration at runtime
-export function makeEntity(target: any) {
+export function makeEntity(target: EntityConstructor) {
     if (!Reflect.hasMetadata('table:name', target)) {
-    // if (!target['tableName']) {
         throw new Error('class has not been decorated with @Entity');
     }
 
@@ -160,7 +161,7 @@ function getRefItem(entity: Entity, attr: string) {
     let item = {
         pk: `${entity.tableName.toUpperCase()}#${entity.id}`,
         sk: `${entity[attr].tableName.toUpperCase()}#${entity[attr].id}`,
-        data: '$nil'
+        data: `${entity.tableName.toUpperCase()}#${entity.id}`
     };
 
     Object.keys(entity).filter(key => key !== 'id' && key !== attr).forEach(key => {

@@ -1,7 +1,6 @@
 import * as AWS from "aws-sdk";
-import {attrToComposite, makeEntity} from "./Entity";
+import {attrToComposite, EntityConstructor, makeEntity} from "./Entity";
 import {DocumentClient} from "aws-sdk/lib/dynamodb/document_client";
-import QueryInput = DocumentClient.QueryInput;
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
@@ -82,6 +81,38 @@ class SearchableAttributeCondition<EntityType> implements ICondition<EntityType>
     }
 }
 
+class RefAttributeCondition<EntityType> implements ICondition<EntityType> {
+    public value = null;
+    public key = null;
+    public query = null;
+
+    public get equals() {
+        const refTarget = Reflect.getMetadata('ref:target', this.query.target, this.key.name);
+
+        const sk = `${refTarget.name.toUpperCase()}#${this.value}`;
+        const data = `${this.query.target['tableName'].toUpperCase()}#`;
+
+        return {
+            TableName: 'rddb',
+            IndexName: 'sk-data-index',
+            KeyConditionExpression: '#sk = :sk and begins_with(#data,:data)',
+            ExpressionAttributeNames: {
+                '#sk': 'sk',
+                '#data': 'data'
+            },
+            ExpressionAttributeValues: {
+                ':sk': sk,
+                ':data': data
+            }
+        };
+    }
+
+    // @ts-ignore
+    public get filterByComposite(): object {
+        throw new Error('Ref attributes must be queried by equals()');
+    }
+}
+
 class Condition<EntityType, AttributeType extends ICondition<EntityType>> {
     public type: string;
 
@@ -127,12 +158,10 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> {
                 if (this.type === 'like') {
                     throw new Error('cannot query Searchable attributes by like()');
                 }
-            } else {
-                throw new Error(`unable to query by attribute '${this.key.name}'`);
             }
 
             const params = this.impl[this.type];
-            // console.log(params);
+            console.log(params);
 
             const result = await db.query(params).promise();
 
@@ -209,6 +238,8 @@ class Key<EntityType> {
             condition = new Condition(new UniqueAttributeCondition());
         } else if (Reflect.hasMetadata('name:searchable', this.query.target, this.name)) {
             condition = new Condition(new SearchableAttributeCondition());
+        } else if (Reflect.hasMetadata('name:ref', this.query.target, this.name)) {
+            condition = new Condition(new RefAttributeCondition());
         }
         condition.key = this;
         condition.query = this.query;
@@ -216,8 +247,6 @@ class Key<EntityType> {
         return condition;
     }
 }
-
-type EntityConstructor = { new(...args: any[]): {} };
 
 export class Query<EntityType> {
     private readonly ctor: EntityConstructor = null;
