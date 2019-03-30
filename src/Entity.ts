@@ -1,8 +1,10 @@
 import * as AWS from "aws-sdk";
 import * as md5 from "md5";
+import {Config} from "./index";
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
+
 
 declare interface Entity {
     id: string;
@@ -17,8 +19,6 @@ export function Entity<T extends { new(...args: any[]): {} }>(constructor: T) {
     Reflect.defineMetadata('table:name', constructor.name, constructor);
 
     return class extends constructor {
-        [attribute: string]: any;
-
         public readonly id: string;
 
         constructor(...args: any[]) {
@@ -62,7 +62,7 @@ export function Entity<T extends { new(...args: any[]): {} }>(constructor: T) {
 
             const params = {
                 RequestItems: {
-                    'rddb': items.map(body => {
+                    [Config.tableName]: items.map(body => {
                         return {
                             PutRequest: {
                                 Item: body
@@ -204,6 +204,8 @@ function getSchemaItem(entity: Entity, attr: string) {
     }
 }
 
+/* attribute to string */
+
 export function attrToComposite(attr: object): string {
     let composite: string = '';
     Object.keys(attr).reverse().forEach(key => {
@@ -229,4 +231,9 @@ export function attrToSchema(attr: object): string {
         schema = `${schema}#${key}`;
     });
     return schema;
+}
+
+// TODO: needs schema -- could use some kind of resolver pattern to pull schema during query if needed
+export function compositeToAttr(composite: string): object {
+    return {};
 }

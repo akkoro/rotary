@@ -1,6 +1,6 @@
 import * as AWS from "aws-sdk";
 import {attrToComposite, EntityConstructor, makeEntity} from "./Entity";
-import {DocumentClient} from "aws-sdk/lib/dynamodb/document_client";
+import {Config} from "./index";
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
@@ -13,6 +13,7 @@ interface ICondition<EntityType> {
     equals: object;
     filterByComposite: object;
     // contains: object;
+    parseKeyValue: (item: object) => string;
 }
 
 class UniqueAttributeCondition<EntityType> implements ICondition<EntityType> {
@@ -23,7 +24,7 @@ class UniqueAttributeCondition<EntityType> implements ICondition<EntityType> {
     public get equals(): object {
         const sk = this.value;
         return {
-            TableName: 'rddb',
+            TableName: Config.tableName,
             IndexName: 'sk-data-index',
             KeyConditionExpression: '#sk = :sk',
             ExpressionAttributeNames: {
@@ -39,6 +40,10 @@ class UniqueAttributeCondition<EntityType> implements ICondition<EntityType> {
     public get filterByComposite(): object {
         throw new Error('Unique attributes must be queried by equals()');
     }
+
+    public parseKeyValue(item: object): string {
+        return item['sk'];
+    }
 }
 
 class SearchableAttributeCondition<EntityType> implements ICondition<EntityType> {
@@ -49,7 +54,7 @@ class SearchableAttributeCondition<EntityType> implements ICondition<EntityType>
     public get equals(): object {
         const sk = `${this.query.target['tableName'].toUpperCase()}:${this.key.name}`;
         return {
-            TableName: 'rddb',
+            TableName: Config.tableName,
             IndexName: 'sk-data-index',
             KeyConditionExpression: '#sk = :sk and #data = :data',
             ExpressionAttributeNames: {
@@ -66,7 +71,7 @@ class SearchableAttributeCondition<EntityType> implements ICondition<EntityType>
     public get filterByComposite(): object {
         const sk = `${this.query.target['tableName'].toUpperCase()}:${this.key.name}`;
         return {
-            TableName: 'rddb',
+            TableName: Config.tableName,
             IndexName: 'sk-data-index',
             KeyConditionExpression: `#sk = :sk and begins_with(#data,:data)`,
             ExpressionAttributeNames: {
@@ -78,6 +83,10 @@ class SearchableAttributeCondition<EntityType> implements ICondition<EntityType>
                 ':data': (typeof this.value === 'object') ? attrToComposite(this.value) : this.value
             }
         };
+    }
+
+    public parseKeyValue(item: object): string {
+        return item['data'];
     }
 }
 
@@ -93,7 +102,7 @@ class RefAttributeCondition<EntityType> implements ICondition<EntityType> {
         const data = `${this.query.target['tableName'].toUpperCase()}#`;
 
         return {
-            TableName: 'rddb',
+            TableName: Config.tableName,
             IndexName: 'sk-data-index',
             KeyConditionExpression: '#sk = :sk and begins_with(#data,:data)',
             ExpressionAttributeNames: {
@@ -110,6 +119,10 @@ class RefAttributeCondition<EntityType> implements ICondition<EntityType> {
     // @ts-ignore
     public get filterByComposite(): object {
         throw new Error('Ref attributes must be queried by equals()');
+    }
+
+    public parseKeyValue(item: object): string {
+        return item['sk'].split('#')[1];
     }
 }
 
@@ -160,14 +173,18 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> {
                 }
             }
 
-            const params = this.impl[this.type];
-            console.log(params);
-
-            const result = await db.query(params).promise();
+            const result = await db.query(this.impl[this.type]).promise();
 
             if (result.Items.length) {
                 cb(result.Items.map(item => {
-                    return makeEntity(this.query['ctor'])(item['pk'].split('#')[1]);
+                    const entity = makeEntity(this.query['ctor'])(item['pk'].split('#')[1]);
+                    Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
+                        .forEach(key => {
+                            entity[key] = item[key];
+                        });
+                    entity[this._key.name] = this.impl.parseKeyValue(item);
+
+                    return entity;
                 }));
             }
         }
@@ -188,7 +205,7 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> {
     //
     //     const sk = this.query.target['tableName'].toUpperCase();
     //     return {
-    //         TableName: 'rddb',
+    //         TableName: Config.tableName,
     //         IndexName: 'sk-data-index',
     //         KeyConditionExpression: `#sk = :sk`,
     //         ExpressionAttributeNames: {
@@ -257,7 +274,6 @@ export class Query<EntityType> {
         this.target = target;
     }
 
-
     public with(attr: string) {
         const key = new Key();
         key.name = attr;
@@ -269,7 +285,7 @@ export class Query<EntityType> {
     public async byId(id: string, cb: (result: EntityType) => void) {
         const pk = `${this.target['tableName'].toUpperCase()}#${id}`;
         const params = {
-            TableName: 'rddb',
+            TableName: Config.tableName,
             KeyConditionExpression: `#pk = :pk`,
             ExpressionAttributeNames: {
                 '#pk': 'pk'
@@ -289,7 +305,7 @@ export class Query<EntityType> {
     public async then(cb: (result: Array<EntityType>) => void) {
         const sk = this.target['tableName'].toUpperCase();
         const params = {
-            TableName: 'rddb',
+            TableName: Config.tableName,
             IndexName: 'sk-data-index',
             KeyConditionExpression: `#sk = :sk`,
             ExpressionAttributeNames: {
