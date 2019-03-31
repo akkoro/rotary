@@ -84,10 +84,6 @@ export function Entity<T extends { new(...args: any[]): {} }>(constructor: T) {
 /* name decorators */
 
 export function Unique(target: any, key: string) {
-    if (Reflect.hasMetadata('name:unique', target)) {
-        throw new Error('entity already has unique name specified');
-    }
-
     Reflect.defineMetadata('name:unique', key, target, key);
 }
 
@@ -129,7 +125,7 @@ function getRootItem(entity: Entity) {
     Object.keys(entity).filter(key => key !== 'id').forEach(key => {
         item = {
             ...item,
-            [key]: typeof entity[key] === 'object' ? attrToComposite(entity[key]) : entity[key]
+            [key]: isAttributeComposite(entity, key) ? attrToComposite(entity[key]) : entity[key]
         }
     });
 
@@ -202,6 +198,14 @@ function getSchemaItem(entity: Entity, attr: string) {
         sk: md5(schema),
         data: schema
     }
+}
+
+function isAttributeComposite(target: any, key: string) {
+    if (Reflect.hasMetadata('ref:target', target, key)) {
+        return false;
+    }
+
+    return (typeof target === 'object');
 }
 
 /* attribute to string */

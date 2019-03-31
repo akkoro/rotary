@@ -122,7 +122,10 @@ class RefAttributeCondition<EntityType> implements ICondition<EntityType> {
     }
 
     public parseKeyValue(item: object): string {
-        return item['sk'].split('#')[1];
+        const refTarget = Reflect.getMetadata('ref:target', this.query.target, this.key.name);
+
+        // TODO: resolve entity or use proxy to fetch on property get
+        return makeEntity(refTarget)(item['sk'].split('#')[1]);
     }
 }
 
@@ -318,7 +321,18 @@ export class Query<EntityType> {
 
         const result = await db.query(params).promise();
         cb(result.Items.map(item => {
-            return makeEntity(this.ctor)(item['pk'].split('#')[1]);
+            const entity = makeEntity(this.ctor)(item['pk'].split('#')[1]);
+            Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
+                .forEach(key => {
+                    if (Reflect.hasMetadata('ref:target', this.target, key)) {
+                        const refTarget = Reflect.getMetadata('ref:target', this.target, key);
+                        entity[key] = makeEntity(refTarget)(item[key]['id']);
+                    } else {
+                        entity[key] = item[key];
+                    }
+                });
+
+            return entity;
         }));
     }
 }
