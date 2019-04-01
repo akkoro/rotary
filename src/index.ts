@@ -12,6 +12,7 @@ export class Config {
 // -- //
 
 Config.tableName = 'rddb';
+// Config.syncSchemaOnStore = false; // Disable sync in production
 
 @Entity
 class Account {

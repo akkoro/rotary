@@ -50,7 +50,7 @@ export function Entity<T extends EntityConstructor>(constructor: T) {
                     console.log(key.toUpperCase());
                     items.push(getSearchableItem(this, key));
 
-                    if (attrIsComposite(key) && Config.syncSchemaOnStore) {
+                    if (isAttributeComposite(this, key) && Config.syncSchemaOnStore) {
                         SchemaRepository.store(constructor, this[key], key).catch(e => console.log(e));
                     }
                 }
@@ -111,10 +111,6 @@ export function makeEntity(target: any) {
 }
 
 /* internal helpers */
-
-function attrIsComposite(attr: string): boolean {
-    return typeof this[attr] === 'object';
-}
 
 function getRootItem(entity: Entity) {
     let item = {
@@ -188,19 +184,6 @@ function getSearchableItem(entity: Entity, attr: string) {
     return item;
 }
 
-function getSchemaItem(entity: Entity, attr: string) {
-    // TODO: the schema of the composite name needs to be persisted here,
-    //       or in an Entity.freeze() type of method to avoid extra put()s on each store()
-    const schemaKey = `${entity.tableName.toUpperCase()}:${attr}`;
-    const schema = attrToSchema(entity[attr]);
-
-    return {
-        pk: `$SCHEMA#${schemaKey}`,
-        sk: md5(schema),
-        data: schema
-    }
-}
-
 function isAttributeComposite(target: any, key: string) {
     if (Reflect.hasMetadata('ref:target', target, key)) {
         return false;
@@ -223,22 +206,4 @@ export function attrToComposite(attr: object): string {
         composite = `${composite}#${attr[key]}`;
     });
     return composite;
-}
-
-export function attrToSchema(attr: object): string {
-    let schema: string = '';
-    Object.keys(attr).reverse().forEach(key => {
-        // @ts-ignore
-        if (typeof attr[key] === 'object') {
-            throw new Error('cannot store nested composite attributes');
-        }
-
-        schema = `${schema}#${key}`;
-    });
-    return schema;
-}
-
-// TODO: needs schema -- could use some kind of resolver pattern to pull schema during query if needed
-export function compositeToAttr(composite: string): object {
-    return {};
 }

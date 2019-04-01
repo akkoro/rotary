@@ -103,14 +103,16 @@ class Schema {
     }
 
     /**
-     * Return a function which will assign composite attribute values to entity[key] based on schema object
+     * Return a function which will map composite attribute values to entity[key] based on schema object
      * Suitable for passing to resolve(...).then()
      * @param formattedValues The composite attribute as stored in DynamoDB, ie `#value1#value2`
      * @param entity The entity object to write to
      * @param key The key name in entity of the composite attribute
      * @param resolve Optional resolve function (ie from Promise)
      */
-    public getEntityResolver(formattedValues: string, entity: object, key: string, resolve?: Function): any {
+    public getValueMapper(formattedValues: string, entity: object, key: string, resolve?: Function)
+        : ((value: object) => void)
+    {
         const schemaValues = formattedValues.split('#').slice(1).reverse();
 
         return function(schema: object) {

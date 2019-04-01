@@ -190,7 +190,7 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> {
                             if ((item[key] as string).charAt(0) === '#') {
                                 promises.push(new Promise((resolve, reject) => {
                                     SchemaRepository.resolve(this.query['ctor'], key)
-                                        .then(SchemaRepository.getEntityResolver(item[key], entity, key, resolve));
+                                        .then(SchemaRepository.getValueMapper(item[key], entity, key, resolve));
                                 }));
 
                             } else {
@@ -348,7 +348,7 @@ export class Query<EntityType> {
                         if ((item[key] as string).charAt(0) === '#') {
                             promises.push(new Promise((resolve, reject) => {
                                 SchemaRepository.resolve(this.ctor, key)
-                                    .then(SchemaRepository.getEntityResolver(item[key], entity, key, resolve));
+                                    .then(SchemaRepository.getValueMapper(item[key], entity, key, resolve));
                             }));
 
                         } else {
