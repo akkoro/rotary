@@ -6,6 +6,7 @@ import {Attribute, Entity, makeEntity, Ref, Searchable, Unique} from "./Entity";
 export class Config {
     public static tableName: string;
     public static storeDeepReferences: boolean = false;
+    public static syncSchemaOnStore: boolean = true;
 }
 
 // -- //
@@ -18,22 +19,32 @@ class Account {
     type: Attribute;
 }
 
+interface UserName {
+    first: string;
+    last: string;
+}
+
+interface UserAddress {
+    city: string;
+    country: string;
+}
+
 @Entity
 class User {
     @Unique
     email: string;
 
     @Unique
-    phoneNumber: Attribute;
+    phoneNumber: string;
 
     @Searchable
-    address: Attribute;
+    address: UserAddress;
 
     @Searchable
-    name: Attribute;
+    name: UserName;
 
     @Searchable
-    type: Attribute;
+    type: string;
 
     @Ref(Account)
     account: Ref;
@@ -62,11 +73,7 @@ class User {
 // In TS 3.4 we can rely on (result: User[]), so explicit type of forEach not needed
 query(User).then(result => {
     result.forEach((user: User) => {
-        if (typeof user.account === 'object') {
-            const acc = user.account as unknown as Account;
-            console.log(acc);
-            console.log(user);
-        }
+        console.log(user);
     })
 });
 

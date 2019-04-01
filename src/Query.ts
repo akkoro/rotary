@@ -1,6 +1,7 @@
 import * as AWS from "aws-sdk";
 import {attrToComposite, EntityConstructor, makeEntity} from "./Entity";
 import {Config} from "./index";
+import {SchemaRepository} from "./Schema";
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
@@ -179,20 +180,35 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> {
             const result = await db.query(this.impl[this.type]).promise();
 
             if (result.Items.length) {
-                cb(result.Items.map(item => {
+                const promises: Array<Promise<any>> = [];
+                const entities = result.Items.map(item => {
+                    // TODO: use ID and this.query.target.name to lookup in cache
                     const entity = makeEntity(this.query['ctor'])(item['pk'].split('#')[1]);
+
                     Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
                         .forEach(key => {
-                            entity[key] = item[key];
+                            if ((item[key] as string).charAt(0) === '#') {
+                                promises.push(new Promise((resolve, reject) => {
+                                    SchemaRepository.resolve(this.query['ctor'], key)
+                                        .then(SchemaRepository.getEntityResolver(item[key], entity, key, resolve));
+                                }));
+
+                            } else {
+                                entity[key] = item[key];
+                            }
                         });
                     entity[this._key.name] = this.impl.parseKeyValue(item);
 
                     return entity;
-                }));
+                });
+
+                await Promise.all(promises);
+                cb(entities);
             }
         }
     }
 
+    // TODO: drop like and create Filter to chain after Condition?
     // private get like() {
     //     let filterBy = '';
     //     let values = {};
@@ -320,7 +336,8 @@ export class Query<EntityType> {
         };
 
         const result = await db.query(params).promise();
-        cb(result.Items.map(item => {
+        const promises: Array<Promise<any>> = [];
+        const entities = result.Items.map(item => {
             const entity = makeEntity(this.ctor)(item['pk'].split('#')[1]);
             Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
                 .forEach(key => {
@@ -328,12 +345,23 @@ export class Query<EntityType> {
                         const refTarget = Reflect.getMetadata('ref:target', this.target, key);
                         entity[key] = makeEntity(refTarget)(item[key]['id']);
                     } else {
-                        entity[key] = item[key];
+                        if ((item[key] as string).charAt(0) === '#') {
+                            promises.push(new Promise((resolve, reject) => {
+                                SchemaRepository.resolve(this.ctor, key)
+                                    .then(SchemaRepository.getEntityResolver(item[key], entity, key, resolve));
+                            }));
+
+                        } else {
+                            entity[key] = item[key];
+                        }
                     }
                 });
 
             return entity;
-        }));
+        });
+
+        await Promise.all(promises);
+        cb(entities);
     }
 }
 

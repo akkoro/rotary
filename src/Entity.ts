@@ -1,6 +1,7 @@
 import * as AWS from "aws-sdk";
 import * as md5 from "md5";
 import {Config} from "./index";
+import {SchemaRepository} from "./Schema";
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
@@ -15,7 +16,7 @@ export type Attribute = string | object | undefined;
 export type Ref = Entity | undefined;
 export type EntityConstructor = { new(...args: any[]): {} };
 
-export function Entity<T extends { new(...args: any[]): {} }>(constructor: T) {
+export function Entity<T extends EntityConstructor>(constructor: T) {
     Reflect.defineMetadata('table:name', constructor.name, constructor);
 
     return class extends constructor {
@@ -48,9 +49,9 @@ export function Entity<T extends { new(...args: any[]): {} }>(constructor: T) {
                 if (Reflect.hasMetadata('name:searchable', this, key)) {
                     console.log(key.toUpperCase());
                     items.push(getSearchableItem(this, key));
-                    if (attrIsComposite(key)) {
-                        console.log(key.toUpperCase() + '-SCHEMA');
-                        items.push(getSchemaItem(this, key));
+
+                    if (attrIsComposite(key) && Config.syncSchemaOnStore) {
+                        SchemaRepository.store(constructor, this[key], key).catch(e => console.log(e));
                     }
                 }
 
