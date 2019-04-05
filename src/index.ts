@@ -1,6 +1,6 @@
 import "reflect-metadata";
 
-import {query} from "./Query";
+import {query} from "./query";
 import {Attribute, Entity, makeEntity, Ref, Searchable, Unique} from "./Entity";
 
 export class Config {
