@@ -6,7 +6,7 @@ class Key<EntityType> {
     public query: Query<EntityType>;
 
     public equals(value: object|string) {
-        const condition = this.baseCondition;
+        const condition = this.baseCondition();
         condition.type = 'equals';
         condition.value = value;
 
@@ -14,7 +14,7 @@ class Key<EntityType> {
     }
 
     public filterByComposite(value: object) {
-        const condition = this.baseCondition;
+        const condition = this.baseCondition();
         condition.type = 'filterByComposite';
         condition.value = value;
 
@@ -22,14 +22,14 @@ class Key<EntityType> {
     }
 
     public like(value: object|string) {
-        const condition = this.baseCondition;
+        const condition = this.baseCondition();
         condition.type = 'like';
         condition.value = value;
 
         return condition;
     }
 
-    private get baseCondition() {
+    private baseCondition() {
         let condition;
         if (Reflect.hasMetadata('name:unique', this.query.target, this.name)) {
             condition = new Condition(new UniqueAttributeCondition());

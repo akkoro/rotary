@@ -1,5 +1,4 @@
 import * as AWS from "aws-sdk";
-import * as md5 from "md5";
 import {Config} from "./index";
 import {SchemaRepository} from "./Schema";
 

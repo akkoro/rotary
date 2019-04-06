@@ -1,9 +1,11 @@
+import * as AWS from "aws-sdk";
 import {Config} from "../index";
 import {attrToComposite, makeEntity} from "../Entity";
 import {SchemaRepository} from "../Schema";
 import Query from "./Query";
 import Key from "./Key";
-import * as AWS from "aws-sdk";
+import Filter from "./Filter";
+import {Executor, FilterProps} from "./index";
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
@@ -19,7 +21,7 @@ export interface ICondition<EntityType> {
     parseKeyValue: (item: object) => string;
 }
 
-class Condition<EntityType, AttributeType extends ICondition<EntityType>> {
+class Condition<EntityType, AttributeType extends ICondition<EntityType>> implements Executor<EntityType> {
     public type: string;
 
     private _key: Key<EntityType>;
@@ -58,7 +60,14 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> {
         this.impl.value = v;
     }
 
-    public async then(cb: (result: Array<EntityType>) => void) {
+    public filter(attr: string) {
+        const filter = new Filter();
+        filter.name = attr;
+        filter.executor = this;
+        return filter;
+    }
+
+    public async exec(cb: (result: Array<EntityType>) => void, filter?: FilterProps) {
         if (this.query.target) {
             if (Reflect.hasMetadata('name:searchable', this.query.target, this.key.name)) {
                 if (this.type === 'like') {
@@ -66,7 +75,23 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> {
                 }
             }
 
-            const result = await db.query(this.impl[this.type]).promise();
+            let params = this.impl[this.type];
+            if (filter) {
+                params = {
+                    ...params,
+                    ExpressionAttributeNames: {
+                        ...params.ExpressionAttributeNames,
+                        ...filter.expressionNames
+                    },
+                    ExpressionAttributeValues: {
+                        ...params.ExpressionAttributeValues,
+                        ...filter.expressionValues
+                    },
+                    FilterExpression: filter.expression
+                }
+            }
+
+            const result = await db.query(params).promise();
 
             if (result.Items.length) {
                 const promises: Array<Promise<any>> = [];
@@ -96,37 +121,6 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> {
             }
         }
     }
-
-    // TODO: drop like and create Filter to chain after Condition?
-    // private get like() {
-    //     let filterBy = '';
-    //     let values = {};
-    //     if (typeof this.value === 'object') {
-    //         Object.keys(this.value).forEach(key => {
-    //             filterBy = `contains(#${this.key.name},:${key})${filterBy.length ? `or ${filterBy}` : ''}`;
-    //             values = {
-    //                 ...values,
-    //                 [`:${key}`]: this.value[key]
-    //             };
-    //         });
-    //     }
-    //
-    //     const sk = this.query.target['tableName'].toUpperCase();
-    //     return {
-    //         TableName: Config.tableName,
-    //         IndexName: 'sk-data-index',
-    //         KeyConditionExpression: `#sk = :sk`,
-    //         ExpressionAttributeNames: {
-    //             '#sk': 'sk',
-    //             [`#${this.key.name}`]: `${this.key.name}`
-    //         },
-    //         ExpressionAttributeValues: {
-    //             ':sk': sk,
-    //             ...values
-    //         },
-    //         FilterExpression: filterBy
-    //     };
-    // }
 }
 
 export class UniqueAttributeCondition<EntityType> implements ICondition<EntityType> {

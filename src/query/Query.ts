@@ -3,11 +3,13 @@ import {EntityConstructor, makeEntity} from "../Entity";
 import {Config} from "../index";
 import {SchemaRepository} from "../Schema";
 import Key from "./Key";
+import Filter from "./Filter";
+import {Executor, FilterProps} from "./index";
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
 
-class Query<EntityType> {
+class Query<EntityType> implements Executor<EntityType> {
     private readonly ctor: EntityConstructor = null;
     public readonly target: EntityType = null;
 
@@ -22,6 +24,13 @@ class Query<EntityType> {
         key.query = this;
 
         return key;
+    }
+
+    public filter(attr: string) {
+        const filter = new Filter();
+        filter.name = attr;
+        filter.executor = this;
+        return filter;
     }
 
     public async byId(id: string, cb: (result: EntityType) => void) {
@@ -44,18 +53,21 @@ class Query<EntityType> {
         }
     }
 
-    public async then(cb: (result: Array<EntityType>) => void) {
+    public async exec(cb: (result: Array<EntityType>) => void, filter?: FilterProps) {
         const sk = this.target['tableName'].toUpperCase();
         const params = {
             TableName: Config.tableName,
             IndexName: 'sk-data-index',
             KeyConditionExpression: `#sk = :sk`,
             ExpressionAttributeNames: {
-                '#sk': 'sk'
+                '#sk': 'sk',
+                ...filter.expressionNames
             },
             ExpressionAttributeValues: {
-                ':sk': sk
-            }
+                ':sk': sk,
+                ...filter.expressionValues
+            },
+            FilterExpression: filter.expression
         };
 
         const result = await db.query(params).promise();
