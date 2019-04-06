@@ -10,7 +10,7 @@ class Filter<EntityType, AttributeType extends ICondition<EntityType>> {
 
     public and(attr: string) {
         this.name = attr;
-        this.expression = `${this.expression} and `;
+        this.expression = `${this.expression} and`;
         return this;
     }
 
@@ -25,7 +25,7 @@ class Filter<EntityType, AttributeType extends ICondition<EntityType>> {
             [`:${this.name}`]: value
         };
 
-        this.expression = `${this.expression}#${this.name} = :${this.name}`;
+        this.expression = `${this.expression} #${this.name} = :${this.name}`;
         return this;
     }
 
