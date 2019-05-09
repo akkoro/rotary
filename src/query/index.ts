@@ -8,7 +8,7 @@ export type FilterProps = {
 }
 
 export interface Executor<EntityType> {
-    exec(cb: (result: Array<EntityType>) => void, filter?: FilterProps);
+    exec(filter?: FilterProps);
 }
 
 export function query<EntityType>(target: EntityConstructor): Query<EntityType> {

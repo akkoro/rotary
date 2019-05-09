@@ -1,4 +1,6 @@
 import * as AWS from "aws-sdk";
+import {FutureInstance} from "fluture";
+import * as Future from "fluture";
 import {Config} from "./index";
 import {SchemaRepository} from "./Schema";
 
@@ -39,6 +41,7 @@ export function Entity<T extends EntityConstructor>(constructor: T) {
 
             items.push(getRootItem(this));
 
+            const schemaFutures: Array<FutureInstance<any, any>> = [];
             Object.keys(this).forEach(key => {
                 if (Reflect.hasMetadata('name:unique', this, key)) {
                     console.log(key.toUpperCase());
@@ -50,7 +53,7 @@ export function Entity<T extends EntityConstructor>(constructor: T) {
                     items.push(getSearchableItem(this, key));
 
                     if (isAttributeComposite(this, key) && Config.syncSchemaOnStore) {
-                        SchemaRepository.store(constructor, this[key], key).catch(e => console.log(e));
+                        schemaFutures.push(SchemaRepository.store(constructor, this[key], key));
                     }
                 }
 
@@ -72,8 +75,7 @@ export function Entity<T extends EntityConstructor>(constructor: T) {
                 }
             };
 
-            db.batchWrite(params).promise().then(response => console.log(response))
-                .catch(e => console.log(e));
+            return Future.parallel(2, schemaFutures).chain(() => Future.tryP(() => db.batchWrite(params).promise()));
 
             // TODO: if (cascade), call store() on all Ref's
 

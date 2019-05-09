@@ -1,4 +1,6 @@
 import * as AWS from "aws-sdk";
+import * as Future from "fluture";
+import {FutureInstance} from 'fluture';
 import {Config} from "../index";
 import {attrToComposite, makeEntity} from "../Entity";
 import {SchemaRepository} from "../Schema";
@@ -18,7 +20,7 @@ export interface ICondition<EntityType> {
     equals: object;
     filterByComposite: object;
     // contains: object;
-    parseKeyValue: (item: object) => string;
+    parseKeyValue: (item: object) => FutureInstance<any, any>;
 }
 
 class Condition<EntityType, AttributeType extends ICondition<EntityType>> implements Executor<EntityType> {
@@ -67,7 +69,7 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> implem
         return filter;
     }
 
-    public async exec(cb: (result: Array<EntityType>) => void, filter?: FilterProps) {
+    public exec(filter?: FilterProps) {
         if (this.query.target) {
             if (Reflect.hasMetadata('name:searchable', this.query.target, this.key.name)) {
                 if (this.type === 'like') {
@@ -91,35 +93,38 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> implem
                 }
             }
 
-            const result = await db.query(params).promise();
+            return Future.tryP(() => db.query(params).promise())
+                .chain(result => {
+                    const futures: Array<FutureInstance<any, any>> = [];
+                    const entities = result.Items.map(item => {
+                        // TODO: use ID and this.query.target.name to lookup in cache
+                        const entity = makeEntity(this.query['ctor'])(item['pk'].split('#')[1]);
 
-            if (result.Items.length) {
-                const promises: Array<Promise<any>> = [];
-                const entities = result.Items.map(item => {
-                    // TODO: use ID and this.query.target.name to lookup in cache
-                    const entity = makeEntity(this.query['ctor'])(item['pk'].split('#')[1]);
-
-                    Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
-                        .forEach(key => {
-                            if ((item[key] as string).charAt(0) === '#') {
-                                promises.push(new Promise((resolve, reject) => {
-                                    SchemaRepository.resolve(this.query['ctor'], key)
-                                        .then(SchemaRepository.getValueMapper(item[key], entity, key, resolve));
-                                }));
-
-                            } else {
-                                entity[key] = item[key];
-                            }
+                        Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
+                            .forEach(key => {
+                                if (typeof item[key] === 'string' && (item[key] as string).charAt(0) === '#') {
+                                    const f = SchemaRepository.resolve(this.query['ctor'], key)
+                                        .map(SchemaRepository.getValueMapper(item[key], key))
+                                        .map(keyValue => {
+                                            entity[key] = keyValue;
+                                        });
+                                    futures.push(f)
+                                } else {
+                                    entity[key] = item[key];
+                                }
+                            });
+                        this.impl.parseKeyValue(item).map(keyValue => {
+                            entity[this._key.name] = keyValue;
                         });
-                    entity[this._key.name] = this.impl.parseKeyValue(item);
 
-                    return entity;
-                });
+                        return entity;
+                    });
 
-                await Promise.all(promises);
-                cb(entities);
-            }
+                    return Future.parallel(2, futures).chain(() => Future.of(entities));
+                })
         }
+
+        return Future.reject('condition is missing query target');
     }
 }
 
@@ -148,14 +153,14 @@ export class UniqueAttributeCondition<EntityType> implements ICondition<EntityTy
         throw new Error('Unique attributes must be queried by equals()');
     }
 
-    public parseKeyValue(item: object): string {
-        return item['sk'];
+    public parseKeyValue(item: object) {
+        return Future.of(item['sk']);
     }
 }
 
 export class SearchableAttributeCondition<EntityType> implements ICondition<EntityType> {
     public value = null;
-    public key = null;
+    public key: Key<EntityType> = null;
     public query = null;
 
     public get equals(): object {
@@ -192,8 +197,16 @@ export class SearchableAttributeCondition<EntityType> implements ICondition<Enti
         };
     }
 
-    public parseKeyValue(item: object): string {
-        return item['data'];
+    public parseKeyValue(item: object) {
+        const key = this.key.name;
+        const val = item['data'];
+
+        if (typeof val === 'string' && val.charAt(0) === '#') {
+            return SchemaRepository.resolve(this.query['ctor'], key)
+                .map(SchemaRepository.getValueMapper(item['data'], key));
+        }
+
+        return Future.of(item['data']);
     }
 }
 
@@ -228,11 +241,11 @@ export class RefAttributeCondition<EntityType> implements ICondition<EntityType>
         throw new Error('Ref attributes must be queried by equals()');
     }
 
-    public parseKeyValue(item: object): string {
+    public parseKeyValue(item: object) {
         const refTarget = Reflect.getMetadata('ref:target', this.query.target, this.key.name);
 
         // TODO: resolve entity or use proxy to fetch on property get
-        return makeEntity(refTarget)(item['sk'].split('#')[1]);
+        return Future.of(makeEntity(refTarget)(item['sk'].split('#')[1]));
     }
 }
 

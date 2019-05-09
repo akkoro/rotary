@@ -52,19 +52,17 @@ class User {
 }
 
 // Get user by exact name
-// query(User).with('name').equals({first: 'Clem', last: 'Fandango'}).exec(result => {
-//     console.log(result);
-// });
+query(User).with('name').equals({first: 'Clem', last: 'Fandango'}).exec().fork(console.error, console.log);
 
 // Get all users with the last name 'Bear'
 // query(User).with('name').filterByComposite({last: 'Bear'}).exec(result => {
 //     console.log(result);
 // });
+// query(User).with('name').filterByComposite({last: 'Bear'}).exec(() => {}).fork(console.error, console.log);
 
 // Get a single user by ID
-// query(User).byId('360b99c1-341f-4ad4-a8b9-1f63668f421f', result => {
-//     console.log(result);
-// }).catch();
+// query(User).byId('360b99c1-341f-4ad4-a8b9-1f63668f421f').fork(console.error, console.log);
+// query(User).byId('u1').fork(console.error, console.log);
 
 // Get a single user by their email
 // query(User).with('email').equals('clem@scramblestudios.co.uk').exec(result => {
@@ -72,16 +70,14 @@ class User {
 // });
 
 // In TS 3.4 we can rely on (result: User[]), so explicit type of forEach not needed
-query(User).filter('email').equalTo('clem@scramblestudios.co.uk').exec(result => {
-    result.forEach((user: User) => {
-        console.log(user);
-    })
-}).catch(err => console.log(err));
+// query(User).filter('email').equalTo('clem@scramblestudios.co.uk').exec(result => {
+//     result.forEach((user: User) => {
+//         console.log(user);
+//     })
+// }).catch(err => console.log(err));
 
 // Get all users belonging to Account ID b8c80039-1c35-42cc-8444-68cce76b4e0f
-// query(User).with('account').equals('b8c80039-1c35-42cc-8444-68cce76b4e0f').exec(result => {
-//     console.log(result);
-// });
+query(User).with('account').equals('b8c80039-1c35-42cc-8444-68cce76b4e0f').exec().fork(console.error, console.log);
 
 // const u = makeEntity(User)('u1');
 // const a = makeEntity(Account)('a2');

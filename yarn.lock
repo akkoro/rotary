@@ -41,6 +41,14 @@ charenc@~0.0.1:
   resolved "https://registry.yarnpkg.com/charenc/-/charenc-0.0.2.tgz#c0a1d2f3a7092e03774bfa83f14c0fc5790a8667"
   integrity sha1-wKHS86cJLgN3S/qD8UwPxXkKhmc=
 
+concurrify@^1.1.1:
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/concurrify/-/concurrify-1.1.1.tgz#e903b6500b2ce9af7ac51bd5f2161f8db33cfb41"
+  integrity sha512-m2UMqZAJ7Ys4Juu0IaToa/RbVuu5jR8dGVrwUOeQtfJjX0KDimUdPZ20tVrdSuqJwLaFbpI+lWxOmZSYxyCvmQ==
+  dependencies:
+    sanctuary-show "^1.0.0"
+    sanctuary-type-identifiers "^2.0.0"
+
 crypt@~0.0.1:
   version "0.0.2"
   resolved "https://registry.yarnpkg.com/crypt/-/crypt-0.0.2.tgz#88d7ff7ec0dfb86f713dc87bbb42d044d3e6c41b"
@@ -50,6 +58,15 @@ events@1.1.1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/events/-/events-1.1.1.tgz#9ebdb7635ad099c70dcc4c2a1f5004288e8bd924"
   integrity sha1-nr23Y1rQmccNzEwqH1AEKI6L2SQ=
+
+fluture@^11.0.1:
+  version "11.0.1"
+  resolved "https://registry.yarnpkg.com/fluture/-/fluture-11.0.1.tgz#e7b0dace991bbe9670e73aa35cd170147ae00f4b"
+  integrity sha512-3sLKXzScs6mQByQefKrlJ4D6dPPIIcy6yvDivnUzs4GNxaKBLAQu9vxkZ9WQpFb7BuhpQgS+sr6z/+f4KLGrOg==
+  dependencies:
+    concurrify "^1.1.1"
+    sanctuary-show "^1.0.0"
+    sanctuary-type-identifiers "^2.0.0"
 
 ieee754@1.1.8:
   version "1.1.8"
@@ -99,6 +116,16 @@ reflect-metadata@^0.1.13:
   version "0.1.13"
   resolved "https://registry.yarnpkg.com/reflect-metadata/-/reflect-metadata-0.1.13.tgz#67ae3ca57c972a2aa1642b10fe363fe32d49dc08"
   integrity sha512-Ts1Y/anZELhSsjMcU605fU9RE4Oi3p5ORujwbIKXfWa+0Zxs510Qrmrce5/Jowq3cHSZSJqBjypxmHarc+vEWg==
+
+sanctuary-show@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/sanctuary-show/-/sanctuary-show-1.0.0.tgz#72deb4812f9decec850e03286807dca1c97a1d61"
+  integrity sha512-63UqNGr5M6wkzKp6eGc/Gy6JBIV2PbzPd3q88+0F9z0qydAQsCWJ+7e4oor39rEEwj2GkZMDEhqGuiMl9eEnYw==
+
+sanctuary-type-identifiers@^2.0.0:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/sanctuary-type-identifiers/-/sanctuary-type-identifiers-2.0.1.tgz#fc524cf6dd92cebfcbb0dd9509eff193159a20ed"
+  integrity sha1-/FJM9t2Szr/LsN2VCe/xkxWaIO0=
 
 sax@1.2.1:
   version "1.2.1"

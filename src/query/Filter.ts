@@ -29,8 +29,8 @@ class Filter<EntityType, AttributeType extends ICondition<EntityType>> {
         return this;
     }
 
-    public async exec(cb: (result: Array<EntityType>) => void) {
-        await this.executor.exec(cb, {
+    public exec() {
+        return this.executor.exec({
             expressionNames: this.expressionNames,
             expressionValues: this.expressionValues,
             expression: this.expression

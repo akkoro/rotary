@@ -1,4 +1,6 @@
 import * as AWS from "aws-sdk";
+import {FutureInstance} from 'fluture';
+import * as Future from 'fluture';
 import * as md5 from "md5";
 import {Config} from "./index";
 import {DocumentClient} from "aws-sdk/lib/dynamodb/document_client";
@@ -11,7 +13,7 @@ const db = new AWS.DynamoDB.DocumentClient();
 class Schema {
     private schemas: {[key: string]: object} = {};
 
-    public async store(entity: EntityConstructor, attr: object, attrName: string): Promise<void> {
+    public store(entity: EntityConstructor, attr: object, attrName: string) {
         let schema: object = {};
         let schemaString: string = '';
         Object.keys(attr).reverse().forEach(key => {
@@ -33,15 +35,15 @@ class Schema {
             hash: md5(schemaString)
         };
 
-        await db.put({TableName: Config.tableName, Item: item}).promise();
-
         this.schemas = {
             ...this.schemas,
             [schemaKey]: schema
         };
+
+        return Future.tryP(() => db.put({TableName: Config.tableName, Item: item}).promise());
     }
 
-    public async load(entity: EntityConstructor, attrName: string): Promise<object> {
+    public load(entity: EntityConstructor, attrName: string) {
         const schemaKey = `${entity.name.toUpperCase()}:${attrName}`;
         const params = {
             TableName: Config.tableName,
@@ -54,15 +56,27 @@ class Schema {
             }
         };
 
-        const result = await db.query(params).promise();
-        const schemaObj = this.fromItem(result.Items[0]);
+        // const result = await db.query(params).promise();
+        // const schemaObj = this.fromItem(result.Items[0]);
+        //
+        // this.schemas = {
+        //     ...this.schemas,
+        //     [schemaKey]: schemaObj
+        // };
+        //
+        // return schemaObj;
 
-        this.schemas = {
-            ...this.schemas,
-            [schemaKey]: schemaObj
-        };
+        return Future.tryP(() => db.query(params).promise())
+            .chain(result => result.Items.length ? Future.of(result.Items[0]) : Future.reject(`schema not found for ${schemaKey}`))
+            .map(item => this.fromItem(item))
+            .map(schemaObj => {
+                this.schemas = {
+                    ...this.schemas,
+                    [schemaKey]: schemaObj
+                };
 
-        return schemaObj;
+                return schemaObj;
+            });
     }
 
     /**
@@ -71,12 +85,13 @@ class Schema {
      * @param entity
      * @param attrName
      */
-    public async resolve(entity: EntityConstructor, attrName: string): Promise<object> {
+    public resolve(entity: EntityConstructor, attrName: string) {
         const schemaKey = `${entity.name.toUpperCase()}:${attrName}`;
-        return this.schemas[schemaKey] || this.load(entity, attrName);
+        // return this.schemas[schemaKey] || this.load(entity, attrName);
+        return this.schemas[schemaKey] ? Future.of(this.schemas[schemaKey]) : this.load(entity, attrName);
     }
 
-    public async fetchAll() {
+    public fetchAll() {
         const params = {
             TableName: Config.tableName,
             IndexName: 'sk-data-index',
@@ -89,28 +104,38 @@ class Schema {
             }
         };
 
-        const results = await db.query(params).promise();
-        results.Items.forEach(item => {
-            const schemaKey = (item['pk'] as string).split('#')[1];
-            const schema = this.fromItem(item);
-            this.schemas = {
-                ...this.schemas,
-                [schemaKey]: schema
-            };
-        });
-
-        console.log(this.schemas);
+        // const results = await db.query(params).promise();
+        // results.Items.forEach(item => {
+        //     const schemaKey = (item['pk'] as string).split('#')[1];
+        //     const schema = this.fromItem(item);
+        //     this.schemas = {
+        //         ...this.schemas,
+        //         [schemaKey]: schema
+        //     };
+        // });
+        //
+        // console.log(this.schemas);
+        return Future.tryP(() => db.query(params).promise())
+            .map(result => result.Items)
+            .map(items => {
+                items.forEach(item => {
+                    const schemaKey = (item['pk'] as string).split('#')[1];
+                    const schema = this.fromItem(item);
+                    this.schemas = {
+                        ...this.schemas,
+                        [schemaKey]: schema
+                    };
+                });
+            })
     }
 
     /**
      * Return a function which will map composite attribute values to entity[key] based on schema object
      * Suitable for passing to resolve(...).then()
      * @param formattedValues The composite attribute as stored in DynamoDB, ie `#value1#value2`
-     * @param entity The entity object to write to
      * @param key The key name in entity of the composite attribute
-     * @param resolve Optional resolve function (ie from Promise)
      */
-    public getValueMapper(formattedValues: string, entity: object, key: string, resolve?: Function)
+    public getValueMapper(formattedValues: string, key: string)
         : ((value: object) => void)
     {
         const schemaValues = formattedValues.split('#').slice(1).reverse();
@@ -121,15 +146,15 @@ class Schema {
                 throw new Error('schema mismatch');
             }
 
-            entity[key] = {};
+            let keyValue = {};
             schemaKeys.forEach((schemaKey, index) => {
-                entity[key] = {
-                    ...entity[key],
+                keyValue = {
+                    ...keyValue,
                     [schemaKey]: schemaValues[index]
                 }
             });
 
-            resolve ? resolve(entity[key]) : null;
+            return keyValue;
         }
     }
 

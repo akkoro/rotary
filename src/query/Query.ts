@@ -1,4 +1,6 @@
 import * as AWS from "aws-sdk";
+import {FutureInstance} from 'fluture';
+import * as Future from "fluture";
 import {EntityConstructor, makeEntity} from "../Entity";
 import {Config} from "../index";
 import {SchemaRepository} from "../Schema";
@@ -33,7 +35,7 @@ class Query<EntityType> implements Executor<EntityType> {
         return filter;
     }
 
-    public async byId(id: string, cb: (result: EntityType) => void) {
+    public byId(id: string) {
         const pk = `${this.target['tableName'].toUpperCase()}#${id}`;
         const params = {
             TableName: Config.tableName,
@@ -46,14 +48,18 @@ class Query<EntityType> implements Executor<EntityType> {
             }
         };
 
-        const result = await db.query(params).promise();
-        if (result.Items && result.Items.length) {
-            const item = result.Items[0];
-            cb(makeEntity(this.ctor)(id));
-        }
+        // const result = await db.query(params).promise();
+        // if (result.Items && result.Items.length) {
+        //     const item = result.Items[0];
+        //     cb(makeEntity(this.ctor)(id));
+        // }
+        return Future.tryP(() => db.query(params).promise())
+            .chain(result => result.Items && result.Items.length ?
+                Future.resolve(result.Items[0]) : Future.reject(`Entity with id ${id} not found`))
+            .map(_item => makeEntity(this.ctor)(id));
     }
 
-    public async exec(cb: (result: Array<EntityType>) => void, filter?: FilterProps) {
+    public exec(filter?: FilterProps) {
         const sk = this.target['tableName'].toUpperCase();
         const params = {
             TableName: Config.tableName,
@@ -70,33 +76,36 @@ class Query<EntityType> implements Executor<EntityType> {
             FilterExpression: filter.expression
         };
 
-        const result = await db.query(params).promise();
-        const promises: Array<Promise<any>> = [];
-        const entities = result.Items.map(item => {
-            const entity = makeEntity(this.ctor)(item['pk'].split('#')[1]);
-            Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
-                .forEach(key => {
-                    if (Reflect.hasMetadata('ref:target', this.target, key)) {
-                        const refTarget = Reflect.getMetadata('ref:target', this.target, key);
-                        entity[key] = makeEntity(refTarget)(item[key]['id']);
-                    } else {
-                        if ((item[key] as string).charAt(0) === '#') {
-                            promises.push(new Promise((resolve, reject) => {
-                                SchemaRepository.resolve(this.ctor, key)
-                                    .then(SchemaRepository.getValueMapper(item[key], entity, key, resolve));
-                            }));
+        return Future.tryP(() => db.query(params).promise())
+            .chain(result => {
 
-                        } else {
-                            entity[key] = item[key];
-                        }
-                    }
+                const futures: Array<FutureInstance<any, any>> = [];
+                const entities = result.Items.map(item => {
+                    const entity = makeEntity(this.ctor)(item['pk'].split('#')[1]);
+                    Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
+                        .forEach(key => {
+                            if (Reflect.hasMetadata('ref:target', this.target, key)) {
+                                const refTarget = Reflect.getMetadata('ref:target', this.target, key);
+                                entity[key] = makeEntity(refTarget)(item[key]['id']);
+                            } else {
+                                if ((item[key] as string).charAt(0) === '#') {
+                                    const f = SchemaRepository.resolve(this.ctor, key);
+                                    f.map(SchemaRepository.getValueMapper(item[key], key));
+                                    f.map(keyValue => entity[key] = keyValue);
+                                    futures.push(f)
+
+                                } else {
+                                    entity[key] = item[key];
+                                }
+                            }
+                        });
+
+                    return entity;
                 });
 
-            return entity;
-        });
-
-        await Promise.all(promises);
-        cb(entities);
+                return Future.parallel(2, futures)
+                    .map(() => entities);
+            })
     }
 }
 
