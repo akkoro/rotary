@@ -56,16 +56,6 @@ class Schema {
             }
         };
 
-        // const result = await db.query(params).promise();
-        // const schemaObj = this.fromItem(result.Items[0]);
-        //
-        // this.schemas = {
-        //     ...this.schemas,
-        //     [schemaKey]: schemaObj
-        // };
-        //
-        // return schemaObj;
-
         return Future.tryP(() => db.query(params).promise())
             .chain(result => result.Items.length ? Future.of(result.Items[0]) : Future.reject(`schema not found for ${schemaKey}`))
             .map(item => this.fromItem(item))
@@ -133,9 +123,8 @@ class Schema {
      * Return a function which will map composite attribute values to entity[key] based on schema object
      * Suitable for passing to resolve(...).then()
      * @param formattedValues The composite attribute as stored in DynamoDB, ie `#value1#value2`
-     * @param key The key name in entity of the composite attribute
      */
-    public getValueMapper(formattedValues: string, key: string)
+    public getValueMapper(formattedValues: string)
         : ((value: object) => void)
     {
         const schemaValues = formattedValues.split('#').slice(1).reverse();

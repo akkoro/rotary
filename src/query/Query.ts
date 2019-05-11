@@ -90,7 +90,7 @@ class Query<EntityType> implements Executor<EntityType> {
                             } else {
                                 if (typeof item[key] === 'string' && (item[key] as string).charAt(0) === '#') {
                                     const f = SchemaRepository.resolve(this.ctor, key)
-                                        .map(SchemaRepository.getValueMapper(item[key], key))
+                                        .map(SchemaRepository.getValueMapper(item[key]))
                                         .map(keyValue => {
                                             entity[key] = keyValue;
                                         });

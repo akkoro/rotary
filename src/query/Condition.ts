@@ -104,7 +104,7 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> implem
                             .forEach(key => {
                                 if (typeof item[key] === 'string' && (item[key] as string).charAt(0) === '#') {
                                     const f = SchemaRepository.resolve(this.query['ctor'], key)
-                                        .map(SchemaRepository.getValueMapper(item[key], key))
+                                        .map(SchemaRepository.getValueMapper(item[key]))
                                         .map(keyValue => {
                                             entity[key] = keyValue;
                                         });
@@ -201,7 +201,7 @@ export class SearchableAttributeCondition<EntityType> implements ICondition<Enti
 
         if (typeof val === 'string' && val.charAt(0) === '#') {
             return SchemaRepository.resolve(this.query['ctor'], key)
-                .map(SchemaRepository.getValueMapper(item['data'], key));
+                .map(SchemaRepository.getValueMapper(item['data']));
         }
 
         return Future.of(item['data']);
