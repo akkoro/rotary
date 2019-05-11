@@ -88,10 +88,12 @@ class Query<EntityType> implements Executor<EntityType> {
                                 const refTarget = Reflect.getMetadata('ref:target', this.target, key);
                                 entity[key] = makeEntity(refTarget)(item[key]['id']);
                             } else {
-                                if ((item[key] as string).charAt(0) === '#') {
-                                    const f = SchemaRepository.resolve(this.ctor, key);
-                                    f.map(SchemaRepository.getValueMapper(item[key], key));
-                                    f.map(keyValue => entity[key] = keyValue);
+                                if (typeof item[key] === 'string' && (item[key] as string).charAt(0) === '#') {
+                                    const f = SchemaRepository.resolve(this.ctor, key)
+                                        .map(SchemaRepository.getValueMapper(item[key], key))
+                                        .map(keyValue => {
+                                            entity[key] = keyValue;
+                                        });
                                     futures.push(f)
 
                                 } else {

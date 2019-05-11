@@ -113,9 +113,7 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> implem
                                     entity[key] = item[key];
                                 }
                             });
-                        this.impl.parseKeyValue(item).map(keyValue => {
-                            entity[this._key.name] = keyValue;
-                        });
+                        futures.push(this.impl.parseKeyValue(item).map(keyValue => entity[this._key.name] = keyValue));
 
                         return entity;
                     });
