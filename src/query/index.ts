@@ -1,4 +1,4 @@
-import {EntityConstructor} from "../Entity";
+import {EntityConstructor} from "../entity";
 import Query from "./Query";
 
 export type FilterProps = {
@@ -14,3 +14,8 @@ export interface Executor<EntityType> {
 export function query<EntityType>(target: EntityConstructor): Query<EntityType> {
     return new Query(target, new target());
 }
+
+export * from './Condition';
+export * from './Filter';
+export * from './Key';
+export * from './Query';

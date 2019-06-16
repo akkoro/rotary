@@ -1,13 +1,13 @@
-import * as AWS from "aws-sdk";
-import * as Future from "fluture";
+import * as AWS from 'aws-sdk';
+import * as Future from 'fluture';
 import {FutureInstance} from 'fluture';
-import {Config} from "../index";
-import {attrToComposite, makeEntity} from "../Entity";
-import {SchemaRepository} from "../Schema";
-import Query from "./Query";
-import Key from "./Key";
-import Filter from "./Filter";
-import {Executor, FilterProps} from "./index";
+import {Config} from '../index';
+import {attrToComposite, EntityStorageType, makeEntity} from '../entity/Entity';
+import {SchemaRepository} from '../Schema';
+import Query from './Query';
+import Key from './Key';
+import Filter from './Filter';
+import {Executor, FilterProps} from './index';
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
@@ -71,10 +71,16 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> implem
 
     public exec(filter?: FilterProps) {
         if (this.query.target) {
-            if (Reflect.hasMetadata('name:searchable', this.query.target, this.key.name)) {
+            const isSearchable = Reflect.hasMetadata('name:searchable', this.query.target, this.key.name);
+            if (isSearchable) {
                 if (this.type === 'like') {
                     throw new Error('cannot query Searchable attributes by like()');
                 }
+            }
+
+            const type = this.query.target['tableType'] as EntityStorageType;
+            if (type === EntityStorageType.TimeSeries && !isSearchable) {
+                throw new Error('TimeSeries entities may only query on Searchable attributes, or by ID');
             }
 
             let params = this.impl[this.type];
@@ -95,10 +101,14 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> implem
 
             return Future.tryP(() => db.query(params).promise())
                 .chain(result => {
+                    console.log(result);
                     const futures: Array<FutureInstance<any, any>> = [];
                     const entities = result.Items.map(item => {
                         // TODO: use ID and this.query.target.name to lookup in cache
-                        const entity = makeEntity(this.query['ctor'])(item['pk'].split('#')[1]);
+                        const entity = type === EntityStorageType.Relational
+                            ? makeEntity(this.query['ctor'])(item['pk'].split('#')[1])
+                            : makeEntity(this.query['ctor'])(item['pk'], item['sk'])
+                        ;
 
                         Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
                             .forEach(key => {
@@ -162,20 +172,39 @@ export class SearchableAttributeCondition<EntityType> implements ICondition<Enti
     public query = null;
 
     public get equals(): object {
-        const sk = `${this.query.target['tableName'].toUpperCase()}:${this.key.name}`;
-        return {
-            TableName: Config.tableName,
-            IndexName: 'sk-data-index',
-            KeyConditionExpression: '#sk = :sk and #data = :data',
-            ExpressionAttributeNames: {
-                '#sk': 'sk',
-                '#data': 'data'
-            },
-            ExpressionAttributeValues: {
-                ':sk': sk,
-                ':data': (typeof this.value === 'object') ? attrToComposite(this.value) : this.value
+        const type = this.query.target['tableType'] as EntityStorageType;
+        switch (type) {
+            case EntityStorageType.Relational: {
+                const sk = `${this.query.target['tableName'].toUpperCase()}:${this.key.name}`;
+                return {
+                    TableName: Config.tableName,
+                    IndexName: 'sk-data-index',
+                    KeyConditionExpression: '#sk = :sk and #data = :data',
+                    ExpressionAttributeNames: {
+                        '#sk': 'sk',
+                        '#data': 'data'
+                    },
+                    ExpressionAttributeValues: {
+                        ':sk': sk,
+                        ':data': (typeof this.value === 'object') ? attrToComposite(this.value) : this.value
+                    }
+                }
             }
-        };
+
+            case EntityStorageType.TimeSeries: {
+                return {
+                    TableName: `${Config.tableName}-${this.query.target['tableName'].toUpperCase()}`,
+                    IndexName: this.key.name.toLowerCase(),
+                    KeyConditionExpression: '#k = :k',
+                    ExpressionAttributeNames: {
+                        ['#k']: this.key.name
+                    },
+                    ExpressionAttributeValues: {
+                        [':k']: this.value
+                    }
+                }
+            }
+        }
     }
 
     public get filterByComposite(): object {
@@ -196,15 +225,16 @@ export class SearchableAttributeCondition<EntityType> implements ICondition<Enti
     }
 
     public parseKeyValue(item: object) {
+        const type = this.query.target['tableType'] as EntityStorageType;
         const key = this.key.name;
-        const val = item['data'];
+        const val = type === EntityStorageType.Relational ? item['data'] : item[key];
 
         if (typeof val === 'string' && val.charAt(0) === '#') {
             return SchemaRepository.resolve(this.query['ctor'], key)
                 .map(SchemaRepository.getValueMapper(item['data']));
         }
 
-        return Future.of(item['data']);
+        return Future.of(val);
     }
 }
 

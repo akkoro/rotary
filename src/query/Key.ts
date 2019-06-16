@@ -1,5 +1,6 @@
 import Query from "./Query";
 import Condition, {RefAttributeCondition, SearchableAttributeCondition, UniqueAttributeCondition} from "./Condition";
+import {EntityStorageType} from '../entity/Entity';
 
 class Key<EntityType> {
     public name: string;
@@ -14,6 +15,11 @@ class Key<EntityType> {
     }
 
     public filterByComposite(value: object) {
+        const type = this.query.target['tableType'] as EntityStorageType;
+        if (type !== EntityStorageType.Relational) {
+            throw new Error(`cannot use 'filterByComposite' operation on TimeSeries entities`);
+        }
+
         const condition = this.baseCondition();
         condition.type = 'filterByComposite';
         condition.value = value;
@@ -22,6 +28,11 @@ class Key<EntityType> {
     }
 
     public like(value: object|string) {
+        const type = this.query.target['tableType'] as EntityStorageType;
+        if (type !== EntityStorageType.Relational) {
+            throw new Error(`cannot use 'like' operation on TimeSeries entities`);
+        }
+
         const condition = this.baseCondition();
         condition.type = 'like';
         condition.value = value;

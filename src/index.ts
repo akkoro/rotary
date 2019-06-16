@@ -1,7 +1,6 @@
-import "reflect-metadata";
-
-import {query} from "./query";
-import {Attribute, Entity, Ref, Searchable, Unique} from "./Entity";
+import 'reflect-metadata';
+import {query} from './query';
+import {IEntity, EntityStorageType, makeEntity, Searchable, Unique} from './entity';
 
 export class Config {
     public static tableName: string;
@@ -9,47 +8,65 @@ export class Config {
     public static syncSchemaOnStore: boolean = true;
 }
 
+export * from './entity';
+export * from './query';
+export * from './Schema';
+
 // -- //
 
-Config.tableName = 'rddb';
+// Config.tableName = 'rddb';
 // Config.syncSchemaOnStore = false; // Disable sync in production
 
-@Entity
-class Account {
-    @Searchable
-    type: Attribute;
-}
+// @Entity(EntityStorageType.TimeSeries)
+// class Content {
+//     content: string;
+//
+//     @Searchable
+//     type: string;
+// }
 
-interface UserName {
-    first: string;
-    last: string;
-}
+// const c1 = makeEntity(Content)('c1', Date.now());
+// c1.content = 'this is my content!';
+// c1.type = 'T1';
+// query(Content).with('type').equals('T1').exec()
+//     .fork(console.error, console.log);
 
-interface UserAddress {
-    city: string;
-    country: string;
-}
-
-@Entity
-class User {
-    @Unique
-    email: string;
-
-    @Unique
-    phoneNumber: string;
-
-    @Searchable
-    address: UserAddress;
-
-    @Searchable
-    name: UserName;
-
-    @Searchable
-    type: string;
-
-    @Ref(Account)
-    account: Ref;
-}
+// @Entity
+// class Account {
+//     @Searchable
+//     type: Attribute;
+// }
+//
+// interface UserName {
+//     first: string;
+//     last: string;
+// }
+//
+// interface UserAddress {
+//     city: string;
+//     country: string;
+// }
+//
+// @Entity
+// class User {
+//     @Unique
+//     email: string;
+//
+//     @Unique
+//     phoneNumber: string;
+//
+//     @Searchable
+//     address: UserAddress;
+//
+//     @Searchable
+//     name: UserName;
+//
+//     @Searchable
+//     type: string;
+//
+//     @Ref(Account)
+//     account: Ref;
+// }
 
 // Get user by exact name
 // query(User).with('name').equals({first: 'Clem', last: 'Fandango'}).exec().fork(console.error, console.log);
@@ -69,11 +86,11 @@ class User {
 //     console.log(result);
 // });
 
-query(User).filter('email').equalTo('clem@scramblestudios.co.uk').exec().fork(console.error, result => {
-    result.forEach(user => {
-        console.log(user);
-    })
-});
+// query(User).filter('email').equalTo('clem@scramblestudios.co.uk').exec().fork(console.error, result => {
+//     result.forEach(user => {
+//         console.log(user);
+//     })
+// });
 
 // Get all users belonging to Account ID b8c80039-1c35-42cc-8444-68cce76b4e0f
 // query(User).with('account').equals('b8c80039-1c35-42cc-8444-68cce76b4e0f').exec().fork(console.error, console.log);

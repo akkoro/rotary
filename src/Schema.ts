@@ -5,7 +5,7 @@ import * as md5 from "md5";
 import {Config} from "./index";
 import {DocumentClient} from "aws-sdk/lib/dynamodb/document_client";
 import AttributeMap = DocumentClient.AttributeMap;
-import {EntityConstructor} from "./Entity";
+import {EntityConstructor} from "./entity";
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();

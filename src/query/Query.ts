@@ -1,12 +1,13 @@
-import * as AWS from "aws-sdk";
+import * as AWS from 'aws-sdk';
+import * as Future from 'fluture';
 import {FutureInstance} from 'fluture';
-import * as Future from "fluture";
-import {EntityConstructor, makeEntity} from "../Entity";
-import {Config} from "../index";
-import {SchemaRepository} from "../Schema";
-import Key from "./Key";
-import Filter from "./Filter";
-import {Executor, FilterProps} from "./index";
+import {EntityConstructor} from '../entity';
+import {EntityStorageType, makeEntity} from '../entity/Entity';
+import {Config} from '../index';
+import {SchemaRepository} from '../Schema';
+import Key from './Key';
+import Filter from './Filter';
+import {Executor, FilterProps} from './index';
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
@@ -36,27 +37,49 @@ class Query<EntityType> implements Executor<EntityType> {
     }
 
     public byId(id: string) {
-        const pk = `${this.target['tableName'].toUpperCase()}#${id}`;
+        const type = this.target['tableType'] as EntityStorageType;
+
+        let pk, tableName;
+        switch (type) {
+            case EntityStorageType.Relational: {
+                pk = `${this.target['tableName'].toUpperCase()}#${id}`;
+                tableName = Config.tableName;
+                break
+            }
+
+            case EntityStorageType.TimeSeries: {
+                pk = id;
+                tableName = `${Config.tableName}-${this.target['tableName'].toUpperCase()}`;
+                break
+            }
+        }
+
         const params = {
-            TableName: Config.tableName,
+            TableName: tableName,
             KeyConditionExpression: `#pk = :pk`,
             ExpressionAttributeNames: {
                 '#pk': 'pk'
             },
             ExpressionAttributeValues: {
                 ':pk': pk
-            }
+            },
+            ScanIndexForward: false
         };
 
-        // const result = await db.query(params).promise();
-        // if (result.Items && result.Items.length) {
-        //     const item = result.Items[0];
-        //     cb(makeEntity(this.ctor)(id));
-        // }
         return Future.tryP(() => db.query(params).promise())
-            .chain(result => result.Items && result.Items.length ?
-                Future.resolve(result.Items[0]) : Future.reject(`Entity with id ${id} not found`))
-            .map(_item => makeEntity(this.ctor)(id));
+            .chain(result => result.Items && result.Items.length
+                ? Future.resolve(result.Items)
+                : Future.reject(`Entity with id ${id} not found`))
+            .map((items: any[]) => items.map(item => {
+                const entity = makeEntity(this.ctor)(id, type === EntityStorageType.TimeSeries ? item.sk : undefined);
+
+                Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
+                    .forEach(key => {
+                        entity[key] = item[key];
+                    });
+
+                return entity;
+            }));
     }
 
     public exec(filter?: FilterProps) {
@@ -67,13 +90,13 @@ class Query<EntityType> implements Executor<EntityType> {
             KeyConditionExpression: `#sk = :sk`,
             ExpressionAttributeNames: {
                 '#sk': 'sk',
-                ...filter.expressionNames
+                ...(filter && filter.expressionNames)
             },
             ExpressionAttributeValues: {
                 ':sk': sk,
-                ...filter.expressionValues
+                ...(filter && filter.expressionValues)
             },
-            FilterExpression: filter.expression
+            FilterExpression: filter && filter.expression
         };
 
         return Future.tryP(() => db.query(params).promise())
@@ -105,8 +128,7 @@ class Query<EntityType> implements Executor<EntityType> {
                     return entity;
                 });
 
-                return Future.parallel(2, futures)
-                    .map(() => entities);
+                return Future.parallel(2, futures).chain(() => Future.of(entities));
             })
     }
 }
