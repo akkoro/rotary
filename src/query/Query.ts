@@ -71,14 +71,7 @@ class Query<EntityType> implements Executor<EntityType> {
                 ? Future.resolve(result.Items)
                 : Future.reject(`Entity with id ${id} not found`))
             .map((items: any[]) => items.map(item => {
-                const entity = makeEntity(this.ctor)(id, type === EntityStorageType.TimeSeries ? item.sk : undefined);
-
-                Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
-                    .forEach(key => {
-                        entity[key] = item[key];
-                    });
-
-                return entity;
+                return makeEntity(this.ctor)({id, timestamp: type === EntityStorageType.TimeSeries ? item.sk : undefined, json: item});
             }));
     }
 

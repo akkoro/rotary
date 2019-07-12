@@ -1,6 +1,6 @@
 import * as Future from "fluture";
 
-export declare interface IEntity {
+export declare interface IEntity extends Storable {
     id: string;
     tableName: string;
 }

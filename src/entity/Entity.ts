@@ -159,8 +159,15 @@ export function makeEntity(target: any) {
         throw new Error('class has not been decorated with @Entity');
     }
 
-    return (id: string, timestamp?: number) => {
-        return new target(id, timestamp) as typeof target;
+    return (args: {id: string, timestamp?: number, json?: object}): IEntity => {
+        const t = new target(args.id, args.timestamp) as typeof target;
+        if (args.json) {
+            Object.keys(args.json)
+                .filter(k => !['id', 'pk', 'sk', 'data'].includes(k))
+                .forEach(key => t[key] = args.json[key]);
+        }
+
+        return t;
     }
 }
 

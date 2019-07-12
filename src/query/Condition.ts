@@ -106,8 +106,8 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> implem
                     const entities = result.Items.map(item => {
                         // TODO: use ID and this.query.target.name to lookup in cache
                         const entity = type === EntityStorageType.Relational
-                            ? makeEntity(this.query['ctor'])(item['pk'].split('#')[1])
-                            : makeEntity(this.query['ctor'])(item['pk'], item['sk'])
+                            ? makeEntity(this.query['ctor'])({id: item['pk'].split('#')[1]})
+                            : makeEntity(this.query['ctor'])({id: item['pk'], timestamp: item['sk']})
                         ;
 
                         Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
