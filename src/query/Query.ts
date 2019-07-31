@@ -2,7 +2,7 @@ import * as AWS from 'aws-sdk';
 import * as Future from 'fluture';
 import {FutureInstance} from 'fluture';
 import {EntityConstructor} from '../entity';
-import {EntityStorageType, makeEntity} from '../entity/Entity';
+import {EntityStorageType, makeEntity} from '../entity';
 import {Config} from '../index';
 import {SchemaRepository} from '../Schema';
 import Key from './Key';

@@ -163,7 +163,7 @@ export function makeEntity(target: any) {
         const t = new target(args.id, args.timestamp) as typeof target;
         if (args.json) {
             Object.keys(args.json)
-                .filter(k => !['id', 'pk', 'sk', 'data'].includes(k))
+                .filter(k => !['id', 'timestamp', 'pk', 'sk', 'data'].includes(k))
                 .forEach(key => t[key] = args.json[key]);
         }
 
