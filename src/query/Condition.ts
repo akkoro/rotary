@@ -2,7 +2,7 @@ import * as AWS from 'aws-sdk';
 import * as Future from 'fluture';
 import {FutureInstance} from 'fluture';
 import {Config} from '../index';
-import {attrToComposite, EntityStorageType, makeEntity} from '../entity/Entity';
+import {attrToComposite, EntityStorageType, makeEntity} from '../entity';
 import {SchemaRepository} from '../Schema';
 import Query from './Query';
 import Key from './Key';
@@ -26,50 +26,53 @@ export interface ICondition<EntityType> {
 class Condition<EntityType, AttributeType extends ICondition<EntityType>> implements Executor<EntityType> {
     public type: string;
 
+    // tslint:disable-next-line:variable-name
     private _key: Key<EntityType>;
+    // tslint:disable-next-line:variable-name
     private _query: Query<EntityType>;
+    // tslint:disable-next-line:variable-name
     private _value: object|string;
     private readonly impl: AttributeType;
 
-    constructor(impl: AttributeType) {
+    constructor (impl: AttributeType) {
         this.impl = impl;
     }
 
-    public get key() {
+    public get key () {
         return this._key;
     }
 
-    public set key(key: Key<EntityType>) {
+    public set key (key: Key<EntityType>) {
         this._key = key;
         this.impl.key = key;
     }
 
-    public get query() {
+    public get query () {
         return this._query;
     }
 
-    public set query(query: Query<EntityType>) {
+    public set query (query: Query<EntityType>) {
         this._query = query;
         this.impl.query = query;
     }
 
-    public get value() {
+    public get value () {
         return this._value;
     }
 
-    public set value(v: object|string) {
+    public set value (v: object|string) {
         this._value = v;
         this.impl.value = v;
     }
 
-    public filter(attr: string) {
+    public filter (attr: string) {
         const filter = new Filter();
         filter.name = attr;
         filter.executor = this;
         return filter;
     }
 
-    public exec(filter?: FilterProps) {
+    public exec (filter?: FilterProps) {
         if (this.query.target) {
             const isSearchable = Reflect.hasMetadata('name:searchable', this.query.target, this.key.name);
             if (isSearchable) {
@@ -89,47 +92,47 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> implem
                     ...params,
                     ExpressionAttributeNames: {
                         ...params.ExpressionAttributeNames,
-                        ...filter.expressionNames
+                        ...filter.expressionNames,
                     },
                     ExpressionAttributeValues: {
                         ...params.ExpressionAttributeValues,
-                        ...filter.expressionValues
+                        ...filter.expressionValues,
                     },
-                    FilterExpression: filter.expression
-                }
+                    FilterExpression: filter.expression,
+                };
             }
 
             return Future.tryP(() => db.query(params).promise())
-                .chain(result => {
+                .chain((result) => {
                     console.log(result);
                     const futures: Array<FutureInstance<any, any>> = [];
-                    const entities = result.Items.map(item => {
+                    const entities = result.Items.map((item) => {
                         // TODO: use ID and this.query.target.name to lookup in cache
                         const entity = type === EntityStorageType.Relational
                             ? makeEntity(this.query['ctor'])({id: item['pk'].split('#')[1]})
                             : makeEntity(this.query['ctor'])({id: item['pk'], timestamp: item['sk']})
                         ;
 
-                        Object.keys(item).filter(key => !['pk', 'sk', 'data'].includes(key))
-                            .forEach(key => {
+                        Object.keys(item).filter((key) => !['pk', 'sk', 'data'].includes(key))
+                            .forEach((key) => {
                                 if (typeof item[key] === 'string' && (item[key] as string).charAt(0) === '#') {
                                     const f = SchemaRepository.resolve(this.query['ctor'], key)
                                         .map(SchemaRepository.getValueMapper(item[key]))
-                                        .map(keyValue => {
+                                        .map((keyValue) => {
                                             entity[key] = keyValue;
                                         });
-                                    futures.push(f)
+                                    futures.push(f);
                                 } else {
                                     entity[key] = item[key];
                                 }
                             });
-                        futures.push(this.impl.parseKeyValue(item).map(keyValue => entity[this._key.name] = keyValue));
+                        futures.push(this.impl.parseKeyValue(item).map((keyValue) => entity[this._key.name] = keyValue));
 
                         return entity;
                     });
 
                     return Future.parallel(2, futures).chain(() => Future.of(entities));
-                })
+                });
         }
 
         return Future.reject('condition is missing query target');
@@ -141,27 +144,27 @@ export class UniqueAttributeCondition<EntityType> implements ICondition<EntityTy
     public key = null;
     public query = null;
 
-    public get equals(): object {
+    public get equals (): object {
         const sk = this.value;
         return {
             TableName: Config.tableName,
             IndexName: 'sk-data-index',
             KeyConditionExpression: '#sk = :sk',
             ExpressionAttributeNames: {
-                '#sk': 'sk'
+                '#sk': 'sk',
             },
             ExpressionAttributeValues: {
-                ':sk': sk
-            }
+                ':sk': sk,
+            },
         };
     }
 
     // @ts-ignore
-    public get filterByComposite(): object {
+    public get filterByComposite (): object {
         throw new Error('Unique attributes must be queried by equals()');
     }
 
-    public parseKeyValue(item: object) {
+    public parseKeyValue (item: object) {
         return Future.of(item['sk']);
     }
 }
@@ -171,7 +174,7 @@ export class SearchableAttributeCondition<EntityType> implements ICondition<Enti
     public key: Key<EntityType> = null;
     public query = null;
 
-    public get equals(): object {
+    public get equals (): object {
         const type = this.query.target['tableType'] as EntityStorageType;
         switch (type) {
             case EntityStorageType.Relational: {
@@ -182,13 +185,13 @@ export class SearchableAttributeCondition<EntityType> implements ICondition<Enti
                     KeyConditionExpression: '#sk = :sk and #data = :data',
                     ExpressionAttributeNames: {
                         '#sk': 'sk',
-                        '#data': 'data'
+                        '#data': 'data',
                     },
                     ExpressionAttributeValues: {
                         ':sk': sk,
-                        ':data': (typeof this.value === 'object') ? attrToComposite(this.value) : this.value
-                    }
-                }
+                        ':data': (typeof this.value === 'object') ? attrToComposite(this.value) : this.value,
+                    },
+                };
             }
 
             case EntityStorageType.TimeSeries: {
@@ -197,17 +200,17 @@ export class SearchableAttributeCondition<EntityType> implements ICondition<Enti
                     IndexName: this.key.name.toLowerCase(),
                     KeyConditionExpression: '#k = :k',
                     ExpressionAttributeNames: {
-                        ['#k']: this.key.name
+                        ['#k']: this.key.name,
                     },
                     ExpressionAttributeValues: {
-                        [':k']: this.value
-                    }
-                }
+                        [':k']: this.value,
+                    },
+                };
             }
         }
     }
 
-    public get filterByComposite(): object {
+    public get filterByComposite (): object {
         const sk = `${this.query.target['tableName'].toUpperCase()}:${this.key.name}`;
         return {
             TableName: Config.tableName,
@@ -215,16 +218,16 @@ export class SearchableAttributeCondition<EntityType> implements ICondition<Enti
             KeyConditionExpression: `#sk = :sk and begins_with(#data,:data)`,
             ExpressionAttributeNames: {
                 '#sk': 'sk',
-                '#data': 'data'
+                '#data': 'data',
             },
             ExpressionAttributeValues: {
                 ':sk': sk,
-                ':data': (typeof this.value === 'object') ? attrToComposite(this.value) : this.value
-            }
+                ':data': (typeof this.value === 'object') ? attrToComposite(this.value) : this.value,
+            },
         };
     }
 
-    public parseKeyValue(item: object) {
+    public parseKeyValue (item: object) {
         const type = this.query.target['tableType'] as EntityStorageType;
         const key = this.key.name;
         const val = type === EntityStorageType.Relational ? item['data'] : item[key];
@@ -243,7 +246,7 @@ export class RefAttributeCondition<EntityType> implements ICondition<EntityType>
     public key = null;
     public query = null;
 
-    public get equals() {
+    public get equals () {
         const refTarget = Reflect.getMetadata('ref:target', this.query.target, this.key.name);
 
         const sk = `${refTarget.name.toUpperCase()}#${this.value}`;
@@ -255,21 +258,21 @@ export class RefAttributeCondition<EntityType> implements ICondition<EntityType>
             KeyConditionExpression: '#sk = :sk and begins_with(#data,:data)',
             ExpressionAttributeNames: {
                 '#sk': 'sk',
-                '#data': 'data'
+                '#data': 'data',
             },
             ExpressionAttributeValues: {
                 ':sk': sk,
-                ':data': data
-            }
+                ':data': data,
+            },
         };
     }
 
     // @ts-ignore
-    public get filterByComposite(): object {
+    public get filterByComposite (): object {
         throw new Error('Ref attributes must be queried by equals()');
     }
 
-    public parseKeyValue(item: object) {
+    public parseKeyValue (item: object) {
         const refTarget = Reflect.getMetadata('ref:target', this.query.target, this.key.name);
 
         // TODO: resolve entity or use proxy to fetch on property get

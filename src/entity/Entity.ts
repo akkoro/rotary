@@ -1,9 +1,9 @@
-import * as AWS from "aws-sdk";
-import {FutureInstance} from "fluture";
-import * as Future from "fluture";
+import * as AWS from 'aws-sdk';
+import {FutureInstance} from 'fluture';
+import * as Future from 'fluture';
 import {IEntity, EntityConstructor, Storable} from './index';
-import {Config} from "../index";
-import {SchemaRepository} from "../Schema";
+import {Config} from '../index';
+import {SchemaRepository} from '../Schema';
 import {isAttributeComposite} from './helpers';
 
 AWS.config.region = 'us-east-1';
@@ -14,7 +14,7 @@ export enum EntityStorageType {
     TimeSeries = 'TimeSeries'
 }
 
-export function Entity(type?: EntityStorageType) {
+export function Entity (type?: EntityStorageType) {
     return function <T extends EntityConstructor>(constructor: T) {
         Reflect.defineMetadata('table:name', constructor.name, constructor);
         Reflect.defineMetadata('table:type', type || EntityStorageType.Relational, constructor);
@@ -23,7 +23,7 @@ export function Entity(type?: EntityStorageType) {
             public readonly id: string;
             public readonly timestamp: number;
 
-            constructor(...args: any[]) {
+            constructor (...args: any[]) {
                 super(args);
                 this.id = args[0];
 
@@ -32,16 +32,16 @@ export function Entity(type?: EntityStorageType) {
                 }
             }
 
-            public get tableName(): string {
+            public get tableName (): string {
                 return Reflect.getMetadata('table:name', this.constructor);
             }
 
-            public get tableType(): string {
+            public get tableType (): string {
                 return Reflect.getMetadata('table:type', this.constructor);
             }
 
             // @ts-ignore
-            public store(cascade?: boolean) {
+            public store (cascade?: boolean) {
                 console.log(`Storing: ${this.tableName}`);
                 console.log(`Type: ${this.tableType}`);
                 console.log(`ID: ${this.id}`);
@@ -60,7 +60,7 @@ export function Entity(type?: EntityStorageType) {
                 }
             }
 
-            public storeRelational(cascade: boolean) {
+            public storeRelational (cascade: boolean) {
                 if (this.tableType === EntityStorageType.TimeSeries) {
                     throw new Error('attempted to store timeseries entity with storeRelational');
                 }
@@ -98,7 +98,7 @@ export function Entity(type?: EntityStorageType) {
                                 PutRequest: {
                                     Item: body
                                 }
-                            }
+                            };
                         })
                     }
                 };
@@ -108,7 +108,7 @@ export function Entity(type?: EntityStorageType) {
                 // TODO: if (cascade), call store() on all Ref's
             }
 
-            public storeTimeSeries(cascade: boolean) {
+            public storeTimeSeries (cascade: boolean) {
                 if (this.tableType === EntityStorageType.Relational) {
                     throw new Error('attempted to store relational entity with storeTimeSeries');
                 }
@@ -122,7 +122,7 @@ export function Entity(type?: EntityStorageType) {
                     item = {
                         ...item,
                         [key]: isAttributeComposite(this, key) ? attrToComposite(this[key]) : this[key]
-                    }
+                    };
                 });
 
                 const params = {
@@ -130,31 +130,31 @@ export function Entity(type?: EntityStorageType) {
                     Item: item
                 };
 
-                return Future.tryP(() => db.put(params).promise())
+                return Future.tryP(() => db.put(params).promise());
             }
-        }
-    }
+        };
+    };
 }
 
 /* name decorators */
 
-export function Unique(target: any, key: string) {
+export function Unique (target: any, key: string) {
     Reflect.defineMetadata('name:unique', key, target, key);
 }
 
-export function Searchable(target: any, key: string) {
+export function Searchable (target: any, key: string) {
     Reflect.defineMetadata('name:searchable', key, target, key);
 }
 
-export function Ref(type: EntityConstructor) {
+export function Ref (type: EntityConstructor) {
     return function (target: any, key: string) {
         Reflect.defineMetadata('name:ref', key, target, key);
         Reflect.defineMetadata('ref:target', type, target, key);
-    }
+    };
 }
 
 // `any` type here since we check metadata for decoration at runtime
-export function makeEntity(target: any) {
+export function makeEntity (target: any) {
     if (!Reflect.hasMetadata('table:name', target)) {
         throw new Error('class has not been decorated with @Entity');
     }
@@ -168,12 +168,12 @@ export function makeEntity(target: any) {
         }
 
         return t;
-    }
+    };
 }
 
 /* internal helpers */
 
-function getRootItem(entity: IEntity) {
+function getRootItem (entity: IEntity) {
     let item = {
         pk: `${entity.tableName.toUpperCase()}#${entity.id}`,
         sk: entity.tableName.toUpperCase(),
@@ -184,13 +184,13 @@ function getRootItem(entity: IEntity) {
         item = {
             ...item,
             [key]: isAttributeComposite(entity, key) ? attrToComposite(entity[key]) : entity[key]
-        }
+        };
     });
 
     return item;
 }
 
-function getUniqueItem(entity: IEntity, attr: string) {
+function getUniqueItem (entity: IEntity, attr: string) {
     if (typeof this[attr] === 'object') {
         throw new Error('unique attributes must not be composite');
     }
@@ -205,13 +205,13 @@ function getUniqueItem(entity: IEntity, attr: string) {
         item = {
             ...item,
             [key]: typeof this[key] === 'object' ? attrToComposite(this[key]) : this[key]
-        }
+        };
     });
 
     return item;
 }
 
-function getRefItem(entity: IEntity, attr: string) {
+function getRefItem (entity: IEntity, attr: string) {
     let item = {
         pk: `${entity.tableName.toUpperCase()}#${entity.id}`,
         sk: `${entity[attr].tableName.toUpperCase()}#${entity[attr].id}`,
@@ -222,13 +222,13 @@ function getRefItem(entity: IEntity, attr: string) {
         item = {
             ...item,
             [key]: typeof entity[key] === 'object' ? attrToComposite(entity[key]) : entity[key]
-        }
+        };
     });
 
     return item;
 }
 
-function getSearchableItem(entity: IEntity, attr: string) {
+function getSearchableItem (entity: IEntity, attr: string) {
     let item = {
         pk: `${entity.tableName.toUpperCase()}#${entity.id}`,
         sk: `${entity.tableName.toUpperCase()}:${attr}`,
@@ -239,7 +239,7 @@ function getSearchableItem(entity: IEntity, attr: string) {
         item = {
             ...item,
             [key]: typeof entity[key] === 'object' ? attrToComposite(entity[key]) : entity[key]
-        }
+        };
     });
 
     return item;
@@ -247,7 +247,7 @@ function getSearchableItem(entity: IEntity, attr: string) {
 
 /* attribute to string */
 
-export function attrToComposite(attr: object): string {
+export function attrToComposite (attr: object): string {
     let composite: string = '';
     Object.keys(attr).reverse().forEach(key => {
         // @ts-ignore

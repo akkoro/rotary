@@ -1,11 +1,11 @@
-import * as AWS from "aws-sdk";
+import * as AWS from 'aws-sdk';
 import {FutureInstance} from 'fluture';
 import * as Future from 'fluture';
-import * as md5 from "md5";
-import {Config} from "./index";
-import {DocumentClient} from "aws-sdk/lib/dynamodb/document_client";
+import * as md5 from 'md5';
+import {Config} from './index';
+import {DocumentClient} from 'aws-sdk/lib/dynamodb/document_client';
 import AttributeMap = DocumentClient.AttributeMap;
-import {EntityConstructor} from "./entity";
+import {EntityConstructor} from './entity';
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
@@ -13,8 +13,8 @@ const db = new AWS.DynamoDB.DocumentClient();
 class Schema {
     private schemas: {[key: string]: object} = {};
 
-    public store(entity: EntityConstructor, attr: object, attrName: string) {
-        let schema: object = {};
+    public store (entity: EntityConstructor, attr: object, attrName: string) {
+        const schema: object = {};
         let schemaString: string = '';
         Object.keys(attr).reverse().forEach(key => {
             // @ts-ignore
@@ -43,7 +43,7 @@ class Schema {
         return Future.tryP(() => db.put({TableName: Config.tableName, Item: item}).promise());
     }
 
-    public load(entity: EntityConstructor, attrName: string) {
+    public load (entity: EntityConstructor, attrName: string) {
         const schemaKey = `${entity.name.toUpperCase()}:${attrName}`;
         const params = {
             TableName: Config.tableName,
@@ -75,13 +75,13 @@ class Schema {
      * @param entity
      * @param attrName
      */
-    public resolve(entity: EntityConstructor, attrName: string) {
+    public resolve (entity: EntityConstructor, attrName: string) {
         const schemaKey = `${entity.name.toUpperCase()}:${attrName}`;
         // return this.schemas[schemaKey] || this.load(entity, attrName);
         return this.schemas[schemaKey] ? Future.of(this.schemas[schemaKey]) : this.load(entity, attrName);
     }
 
-    public fetchAll() {
+    public fetchAll () {
         const params = {
             TableName: Config.tableName,
             IndexName: 'sk-data-index',
@@ -116,7 +116,7 @@ class Schema {
                         [schemaKey]: schema
                     };
                 });
-            })
+            });
     }
 
     /**
@@ -124,12 +124,11 @@ class Schema {
      * Suitable for passing to resolve(...).then()
      * @param formattedValues The composite attribute as stored in DynamoDB, ie `#value1#value2`
      */
-    public getValueMapper(formattedValues: string)
-        : ((value: object) => void)
-    {
+    public getValueMapper (formattedValues: string)
+        : ((value: object) => void) {
         const schemaValues = formattedValues.split('#').slice(1).reverse();
 
-        return function(schema: object) {
+        return function (schema: object) {
             const schemaKeys = Object.keys(schema);
             if (schemaValues.length !== schemaKeys.length) {
                 throw new Error('schema mismatch');
@@ -140,18 +139,18 @@ class Schema {
                 keyValue = {
                     ...keyValue,
                     [schemaKey]: schemaValues[index]
-                }
+                };
             });
 
             return keyValue;
-        }
+        };
     }
 
-    private fromItem(item: AttributeMap): object {
+    private fromItem (item: AttributeMap): object {
         const schemaString = item['data'] as string;
         const keys = schemaString.split('#').slice(1).reverse();
 
-        let schemaObj = {};
+        const schemaObj = {};
         keys.forEach(key => {
             schemaObj[key] = 'string';
         });

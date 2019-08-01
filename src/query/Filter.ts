@@ -1,5 +1,5 @@
-import {ICondition} from "./Condition";
-import {Executor} from "./index";
+import {ICondition} from './Condition';
+import {Executor} from './index';
 
 class Filter<EntityType, AttributeType extends ICondition<EntityType>> {
     public name: string;
@@ -8,13 +8,13 @@ class Filter<EntityType, AttributeType extends ICondition<EntityType>> {
     public expressionNames: {[key: string]: string};
     public expressionValues: {[key: string]: string};
 
-    public and(attr: string) {
+    public and (attr: string) {
         this.name = attr;
         this.expression = `${this.expression} and`;
         return this;
     }
 
-    public equalTo(value: string) {
+    public equalTo (value: string) {
         this.expressionNames = {
             ...this.expressionNames,
             [`#${this.name}`]: this.name
@@ -29,7 +29,7 @@ class Filter<EntityType, AttributeType extends ICondition<EntityType>> {
         return this;
     }
 
-    public exec() {
+    public exec () {
         return this.executor.exec({
             expressionNames: this.expressionNames,
             expressionValues: this.expressionValues,

@@ -13,15 +13,15 @@ AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
 
 class Query<EntityType> implements Executor<EntityType> {
-    private readonly ctor: EntityConstructor = null;
     public readonly target: EntityType = null;
+    private readonly ctor: EntityConstructor = null;
 
-    constructor(ctor: EntityConstructor, target: any) {
+    constructor (ctor: EntityConstructor, target: any) {
         this.ctor = ctor;
         this.target = target;
     }
 
-    public with(attr: string) {
+    public with (attr: string) {
         const key = new Key();
         key.name = attr;
         key.query = this;
@@ -29,14 +29,14 @@ class Query<EntityType> implements Executor<EntityType> {
         return key;
     }
 
-    public filter(attr: string) {
+    public filter (attr: string) {
         const filter = new Filter();
         filter.name = attr;
         filter.executor = this;
         return filter;
     }
 
-    public byId(id: string) {
+    public byId (id: string) {
         const type = this.target['tableType'] as EntityStorageType;
 
         let pk, tableName;
@@ -44,13 +44,13 @@ class Query<EntityType> implements Executor<EntityType> {
             case EntityStorageType.Relational: {
                 pk = `${this.target['tableName'].toUpperCase()}#${id}`;
                 tableName = Config.tableName;
-                break
+                break;
             }
 
             case EntityStorageType.TimeSeries: {
                 pk = id;
                 tableName = `${Config.tableName}-${this.target['tableName'].toUpperCase()}`;
-                break
+                break;
             }
         }
 
@@ -75,7 +75,7 @@ class Query<EntityType> implements Executor<EntityType> {
             }));
     }
 
-    public exec(filter?: FilterProps) {
+    public exec (filter?: FilterProps) {
         const sk = this.target['tableName'].toUpperCase();
         const params = {
             TableName: Config.tableName,
@@ -110,7 +110,7 @@ class Query<EntityType> implements Executor<EntityType> {
                                         .map(keyValue => {
                                             entity[key] = keyValue;
                                         });
-                                    futures.push(f)
+                                    futures.push(f);
 
                                 } else {
                                     entity[key] = item[key];
@@ -122,7 +122,7 @@ class Query<EntityType> implements Executor<EntityType> {
                 });
 
                 return Future.parallel(2, futures).chain(() => Future.of(entities));
-            })
+            });
     }
 }
 
