@@ -1,13 +1,15 @@
-import {EntityStorageType} from '../entity';
+import {EntityConstructor, EntityStorageType} from '../entity';
 import {Config} from '../index';
 
 export class StorageStrategy<EntityType> {
 
     public readonly tableName: string;
     public readonly storageType: string;
-    private readonly target: EntityType;
+    public readonly ctor: EntityConstructor;
+    public readonly target: EntityType;
 
-    constructor (target: EntityType) {
+    constructor (ctor: EntityConstructor, target: EntityType) {
+        this.ctor = ctor;
         this.target = target;
 
         this.storageType = this.target['tableType'] as EntityStorageType;

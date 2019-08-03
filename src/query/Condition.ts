@@ -195,6 +195,7 @@ export class SearchableAttributeCondition<EntityType> implements ICondition<Enti
                 };
             }
 
+            // FIXME: this doesn't work, unless the values are unique
             case EntityStorageType.TimeSeries: {
                 return {
                     TableName: `${Config.tableName}-${this.query.target['tableName'].toUpperCase()}`,

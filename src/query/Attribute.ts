@@ -3,21 +3,24 @@ import {StorageStrategy} from './StorageStrategy';
 
 export interface AttributeDynamoParams {
     KeyConditionExpression?: string;
-    ExpressionAttributeNames?: string;
-    ExpressionAttributeValues?: string;
+    ExpressionAttributeNames?: {[v: string]: string};
+    ExpressionAttributeValues?: {[v: string]: string};
 }
 
 export interface IAttribute {
     readonly indexName?: string;
-    equals (): AttributeDynamoParams;
+    equals (value: string): AttributeDynamoParams;
+    range (): any;
+    matchHierarchy (): any;
+    loadKeyValue (item: any): any;
 }
 
 export class Attribute<EntityType, S extends StorageStrategy<EntityType>> {
 
-    private readonly strategy: S;
-    private readonly name: string;
+    public readonly name: string;
+    protected readonly strategy: S;
 
-    constructor (name: string, target: EntityType, strategy: S) {
+    constructor (name: string, strategy: S) {
         this.name = name;
         this.strategy = strategy;
     }
