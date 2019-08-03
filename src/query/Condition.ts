@@ -126,6 +126,7 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> implem
                                     entity[key] = item[key];
                                 }
                             });
+                        // Key values are stored differently for each attribute type
                         futures.push(this.impl.parseKeyValue(item).map((keyValue) => entity[this._key.name] = keyValue));
 
                         return entity;
@@ -200,10 +201,10 @@ export class SearchableAttributeCondition<EntityType> implements ICondition<Enti
                     IndexName: this.key.name.toLowerCase(),
                     KeyConditionExpression: '#k = :k',
                     ExpressionAttributeNames: {
-                        ['#k']: this.key.name,
+                        '#k': this.key.name,
                     },
                     ExpressionAttributeValues: {
-                        [':k']: this.value,
+                        ':k': this.value,
                     },
                 };
             }

@@ -1,17 +1,17 @@
-import {EntityConstructor} from "../entity";
-import Query from "./Query";
+import {EntityConstructor} from '../entity';
+import Query from './Query';
 
-export type FilterProps = {
+export interface FilterProps {
     expressionNames: {[key: string]: string};
     expressionValues: {[key: string]: string};
     expression: string;
 }
 
 export interface Executor<EntityType> {
-    exec(filter?: FilterProps);
+    exec (filter?: FilterProps);
 }
 
-export function query<EntityType>(target: EntityConstructor): Query<EntityType> {
+export function query<EntityType> (target: EntityConstructor): Query<EntityType> {
     return new Query(target, new target());
 }
 
