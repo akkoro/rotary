@@ -7,18 +7,17 @@ import {DocumentClient} from 'aws-sdk/lib/dynamodb/document_client';
 import AttributeMap = DocumentClient.AttributeMap;
 import {EntityConstructor} from './entity';
 
-AWS.config.region = 'us-east-1';
-const db = new AWS.DynamoDB.DocumentClient();
+const db = new AWS.DynamoDB.DocumentClient({region: 'us-east-1'});
 
 class Schema {
     private schemas: {[key: string]: object} = {};
 
-    public store (entity: EntityConstructor, attr: object, attrName: string) {
+    public store (entity: EntityConstructor, attrValue: object, attrName: string) {
         const schema: object = {};
         let schemaString: string = '';
-        Object.keys(attr).reverse().forEach(key => {
+        Object.keys(attrValue).reverse().forEach(key => {
             // @ts-ignore
-            if (typeof attr[key] === 'object') {
+            if (typeof attrValue[key] === 'object') {
                 throw new Error('cannot store nested composite attributes');
             }
 

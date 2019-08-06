@@ -1,11 +1,18 @@
 import 'reflect-metadata';
+import './query/strategies/RelationalStorageStrategy';
+import './query/attributes/UniqueAttribute';
+import * as AWS from 'aws-sdk';
+import * as Future from 'fluture';
 import {query} from './query';
-import {IEntity, EntityStorageType, makeEntity, Searchable, Unique} from './entity';
+import {Unique} from './query/attributes/UniqueAttribute';
+import {IEntity, EntityStorageType, makeEntity, Searchable, Ref, Entity} from './entity';
 
 export class Config {
     public static tableName: string;
     public static storeDeepReferences: boolean = false;
     public static syncSchemaOnStore: boolean = true;
+    public static enableDebugLogging: boolean = false;
+    public static db = new AWS.DynamoDB.DocumentClient({region: 'us-east-1'});
 }
 
 export * from './entity';
@@ -14,8 +21,8 @@ export * from './Schema';
 
 // -- //
 
-// Config.tableName = 'rddb';
-// Config.syncSchemaOnStore = false; // Disable sync in production
+Config.tableName = 'rddb';
+Config.syncSchemaOnStore = false; // Disable sync in production
 
 // @Entity(EntityStorageType.TimeSeries)
 // class Content {
@@ -31,42 +38,47 @@ export * from './Schema';
 // query(Content).with('type').equals('T1').exec()
 //     .fork(console.error, console.log);
 
-// @Entity
-// class Account {
-//     @Searchable
-//     type: Attribute;
-// }
-//
-// interface UserName {
-//     first: string;
-//     last: string;
-// }
-//
-// interface UserAddress {
-//     city: string;
-//     country: string;
-// }
-//
-// @Entity
-// class User {
-//     @Unique
-//     email: string;
-//
-//     @Unique
-//     phoneNumber: string;
-//
-//     @Searchable
-//     address: UserAddress;
-//
-//     @Searchable
-//     name: UserName;
-//
-//     @Searchable
-//     type: string;
-//
-//     @Ref(Account)
-//     account: Ref;
-// }
+@Entity()
+class Account {
+    @Searchable
+    public type: string;
+}
+
+interface UserName {
+    first: string;
+    last: string;
+}
+
+interface UserAddress {
+    city: string;
+    country: string;
+}
+
+@Entity()
+class User {
+    @Unique
+    public email: string;
+
+    @Unique
+    public phoneNumber: string;
+
+    @Searchable
+    public address: UserAddress;
+
+    @Searchable
+    public name: UserName;
+
+    @Searchable
+    public type: string;
+
+    @Ref(Account)
+    public account: any;
+}
+
+// const f1 = query(User).select('phoneNumber').equals('tel:+445555555555');
+// const f2 = query(User).select('id').equals('360b99c1-341f-4ad4-a8b9-1f63668f421f');
+// Future.parallel(2, [f1, f2]).fork(console.error, console.log);
+// query(User).fetch().fork(console.error, console.log);
 
 // Get user by exact name
 // query(User).with('name').equals({first: 'Clem', last: 'Fandango'}).exec().fork(console.error, console.log);
@@ -95,7 +107,8 @@ export * from './Schema';
 // Get all users belonging to Account ID b8c80039-1c35-42cc-8444-68cce76b4e0f
 // query(User).with('account').equals('b8c80039-1c35-42cc-8444-68cce76b4e0f').exec().fork(console.error, console.log);
 
-// const u = makeEntity(User)('u1');
-// const a = makeEntity(Account)('a2');
+// const u = makeEntity(User)({id: 'u1'}) as User & IEntity;
+// const a = makeEntity(Account)({id: 'a2'});
+// u.email = 'test@gmail.com';
 // u.account = a;
 // u.store();

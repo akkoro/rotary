@@ -2,7 +2,7 @@ import * as AWS from 'aws-sdk';
 import {FutureInstance} from 'fluture';
 import * as Future from 'fluture';
 import {IEntity, EntityConstructor, Storable} from './index';
-import {Config} from '../index';
+import {Config, StorageStrategies} from '../index';
 import {SchemaRepository} from '../Schema';
 import {isAttributeComposite} from './helpers';
 
@@ -42,15 +42,10 @@ export function Entity (type?: EntityStorageType) {
 
             // @ts-ignore
             public store (cascade?: boolean) {
-                console.log(`Storing: ${this.tableName}`);
-                console.log(`Type: ${this.tableType}`);
-                console.log(`ID: ${this.id}`);
+                const strategy = new StorageStrategies[this.tableType](this.constructor, this);
+                strategy.storeEntity(this);
 
                 switch (this.tableType) {
-                    case EntityStorageType.Relational: {
-                        return this.storeRelational(cascade);
-                    }
-
                     case EntityStorageType.TimeSeries: {
                         return this.storeTimeSeries(cascade);
                     }

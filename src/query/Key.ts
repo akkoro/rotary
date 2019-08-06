@@ -1,6 +1,6 @@
-import Query from './Query';
+import {Query} from './Query';
 import Condition, {RefAttributeCondition, SearchableAttributeCondition, UniqueAttributeCondition} from './Condition';
-import {EntityStorageType} from '../entity/Entity';
+import {EntityStorageType} from '../entity';
 
 class Key<EntityType> {
     public name: string;

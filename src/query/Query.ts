@@ -1,18 +1,22 @@
 import * as AWS from 'aws-sdk';
 import * as Future from 'fluture';
 import {FutureInstance} from 'fluture';
-import {EntityConstructor} from '../entity';
+import {EntityConstructor, IEntity} from '../entity';
 import {EntityStorageType, makeEntity} from '../entity';
 import {Config} from '../index';
 import {SchemaRepository} from '../Schema';
+import {AttributeConstructor, AttributeTypes, IAttribute} from './Attribute';
+import {UniqueAttribute} from './attributes/UniqueAttribute';
+import {WildcardAttribute} from './attributes/WildcardAttribute';
 import Key from './Key';
 import Filter from './Filter';
 import {Executor, FilterProps} from './index';
+import {IStorageStrategy} from './StorageStrategy';
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
 
-class Query<EntityType> implements Executor<EntityType> {
+export class Query<EntityType> implements Executor<EntityType> {
     public readonly target: EntityType = null;
     private readonly ctor: EntityConstructor = null;
 
@@ -126,4 +130,65 @@ class Query<EntityType> implements Executor<EntityType> {
     }
 }
 
-export default Query;
+export class Query2<E extends IEntity, S extends IStorageStrategy<E, A>, A extends IAttribute<E, S>> {
+
+    private readonly target: E = null;
+    private readonly ctor: EntityConstructor = null;
+    private readonly storageType: EntityStorageType;
+    private readonly tableName: string;
+    private readonly strategy: S;
+
+    constructor (ctor: EntityConstructor, target: any) {
+        this.ctor = ctor;
+        this.target = target;
+        this.storageType = this.target['tableType'] as EntityStorageType;
+        this.tableName = this.target['tableName'];
+
+        if (typeof StorageStrategies[this.storageType] === 'undefined') {
+            throw new Error(`no storage strategy found for type ${this.storageType}`);
+        }
+
+        this.strategy = new StorageStrategies[this.storageType](ctor, target);
+    }
+
+    public select (attributeName: string) {
+        let Attr: AttributeConstructor;
+
+        if (attributeName === '*') {
+            Attr = WildcardAttribute;
+        } else if (attributeName === 'id') { // TODO: get reserved names from strategy
+            Attr = this.strategy.getKeyAttribute();
+        } else {
+            const attrType = Reflect.getMetadata('attr:type', this.target, attributeName);
+            Attr = AttributeTypes[attrType];
+        }
+
+        if (Attr === undefined) {
+            throw new Error('temporary nope');
+        }
+
+        const strategy = this.strategy;
+        const attr = new Attr!(attributeName, this.strategy);
+
+        if (attr.compatibleStrategies && !attr.compatibleStrategies.includes(this.storageType)) {
+            throw new Error(`${this.storageType} storage strategy is incompatible with ${attr.typeName} attribute`);
+        }
+
+        return new (class {
+            public equals (value: string) {
+                const params = strategy.attributeEquals(attr, value);
+                return Future.tryP(() => db.query(params).promise())
+                    .map(result => result.Items.map(item => strategy.loadEntity(item, attr)))
+                    .chain((entities: Array<FutureInstance<any, E>>) => Future.parallel(2, entities))
+                ;
+            }
+        })();
+    }
+
+    public fetch () {
+        return this.select('*').equals('*');
+    }
+
+}
+
+export const StorageStrategies: {[name: string]: any} = {};

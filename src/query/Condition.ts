@@ -4,7 +4,7 @@ import {FutureInstance} from 'fluture';
 import {Config} from '../index';
 import {attrToComposite, EntityStorageType, makeEntity} from '../entity';
 import {SchemaRepository} from '../Schema';
-import Query from './Query';
+import {Query} from './Query';
 import Key from './Key';
 import Filter from './Filter';
 import {Executor, FilterProps} from './index';
