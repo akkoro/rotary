@@ -8,30 +8,29 @@ export interface AttributeDynamoParams {
     ExpressionAttributeValues?: {[v: string]: string};
 }
 
-export type AttributeConstructor = new <EntityType extends IEntity, StrategyType extends IStorageStrategy<EntityType, IAttribute<EntityType, StrategyType>>>(name: string, strategy: StrategyType) => IAttribute<EntityType, StrategyType>;
+export type AttributeConstructor = new <E extends IEntity, S extends IStorageStrategy<E, IAttribute<E, S>>>(name: string, strategy: S) => IAttribute<E, S>;
 
-export interface IAttribute<EntityType extends IEntity,
-    StrategyType extends IStorageStrategy<EntityType, IAttribute<EntityType, StrategyType>>> {
-
+export interface IAttribute<E extends IEntity, S extends IStorageStrategy<E, IAttribute<E, S>>> {
     readonly indexName?: string;
     readonly typeName: string;
     readonly name: string;
-    readonly strategy: StrategyType;
+    readonly strategy: S;
 
     compatibleStrategies?: string[];
 
-    equals (value: string): AttributeDynamoParams;
+    equals (value: any): AttributeDynamoParams;
     range (): any;
-    match (): any;
+    match (value: any): any;
 
     loadKeyValue (item: any): any;
-    storeValue (value: any): string;
-    loadValue (value: string): any;
     storeItem ();
+    storeValue (target: E, key: string, value?: any): string;
+    loadValue (item: any, target: E, key: string): any;
 }
 
 export class Attribute<E extends IEntity, S extends IStorageStrategy<E, IAttribute<E, S>>> {
 
+    public readonly typeName: string;
     public readonly name: string;
     public readonly strategy: S;
 
@@ -40,11 +39,32 @@ export class Attribute<E extends IEntity, S extends IStorageStrategy<E, IAttribu
         this.strategy = strategy;
     }
 
+    public equals (value: any) {
+        throw new Error(`${this.typeName} attributes cannot be queried by equality`);
+    }
+
+    public range () {
+        // TODO: if this is a time series entity we can
+        throw new Error(`${this.typeName} attributes cannot be queried by range`);
+    }
+
+    public match (value: any): any {
+        throw new Error(`${this.typeName} attributes cannot be queried by match`);
+    }
+
+    public storeValue (entity: E, key: string, value?: any): string {
+        return value || entity[key] as string;
+    }
+
+    public loadValue (item: any, target: E, key: string): any {
+        return item[key];
+    }
+
     protected storeAttribute (item: any, entity: E, key: string) {
         const attr = getAttributeType(entity, key, this.strategy);
         return {
             ...item,
-            [key]: attr ? attr.storeValue(entity[key]) : entity[key]
+            [key]: attr ? attr.storeValue(entity, key) : entity[key]
         };
     }
 

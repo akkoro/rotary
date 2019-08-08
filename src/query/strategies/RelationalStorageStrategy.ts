@@ -13,7 +13,7 @@ export class RelationalKeyAttribute<EntityType extends IEntity,
 
     public readonly typeName: string = 'RelationalKey';
 
-    public equals (value: string) {
+    public equals (value: any) {
         return {
             KeyConditionExpression: '#pk = :pk and #sk = :sk',
             ExpressionAttributeNames: {
@@ -27,15 +27,6 @@ export class RelationalKeyAttribute<EntityType extends IEntity,
             Limit: 1,
             ScanIndexForward: false
         };
-    }
-
-    public range () {
-        // TODO: if this is a time series entity we can
-        throw new Error('Key attributes cannot be queried by range');
-    }
-
-    public match (): any {
-        throw new Error('Key attributes cannot be queried by match');
     }
 
     public loadKeyValue (item: any): any {
@@ -60,14 +51,6 @@ export class RelationalKeyAttribute<EntityType extends IEntity,
             });
 
         return item;
-    }
-
-    public storeValue (value: any): string {
-        return value as string;
-    }
-
-    public loadValue (value: string): any {
-        return value;
     }
 }
 
@@ -107,7 +90,7 @@ export class RelationalStorageStrategy<E extends IEntity, A extends IAttribute<E
         Object.keys(item).filter((key) => !['pk', 'sk', 'data'].includes(key))
             .forEach((key) => {
                 const attr = getAttributeType(entity, key, this);
-                entity[key] = attr ? attr.loadValue(item[key]) : item[key];
+                entity[key] = attr ? attr.loadValue(item, entity, key) : item[key];
             });
 
         // Key values are stored differently for each attribute type

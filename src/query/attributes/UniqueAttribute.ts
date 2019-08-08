@@ -17,24 +17,18 @@ export class UniqueAttribute <E extends IEntity, S extends IStorageStrategy<E, I
     public readonly typeName: string = AttributeTypeName;
     public compatibleStrategies = CompatibleStrategies;
 
-    public equals (value: string) {
+    public equals (value: any) {
+        const entity = this.strategy.target;
+
         return {
             KeyConditionExpression: '#sk = :sk',
             ExpressionAttributeNames: {
                 '#sk': 'sk',
             },
             ExpressionAttributeValues: {
-                ':sk': value,
+                ':sk': this.storeValue(entity, this.name, value),
             }
         };
-    }
-
-    public range () {
-        throw new Error('Unique attributes cannot be queried by range');
-    }
-
-    public match (): any {
-        throw new Error('Unique attributes cannot be queried by match');
     }
 
     public loadKeyValue (item: any): any {
@@ -46,7 +40,7 @@ export class UniqueAttribute <E extends IEntity, S extends IStorageStrategy<E, I
 
         let item = {
             pk: `${entity.tableName.toUpperCase()}#${entity.id}`,
-            sk: entity[this.name],
+            sk: this.storeValue(entity, this.name),
             data: '$nil'
         };
 
@@ -56,14 +50,6 @@ export class UniqueAttribute <E extends IEntity, S extends IStorageStrategy<E, I
         });
 
         return item;
-    }
-
-    public storeValue (value: any): string {
-        return value as string;
-    }
-
-    public loadValue (value: string): any {
-        return value;
     }
 
 }
