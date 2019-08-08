@@ -5,7 +5,7 @@ import {EntityConstructor, IEntity} from '../entity';
 import {EntityStorageType, makeEntity} from '../entity';
 import {Config} from '../index';
 import {SchemaRepository} from '../Schema';
-import {AttributeConstructor, AttributeTypes, IAttribute} from './Attribute';
+import {AttributeConstructor, AttributeTypes, getAttributeType, IAttribute} from './Attribute';
 import {UniqueAttribute} from './attributes/UniqueAttribute';
 import {WildcardAttribute} from './attributes/WildcardAttribute';
 import Key from './Key';
@@ -152,23 +152,12 @@ export class Query2<E extends IEntity, S extends IStorageStrategy<E, A>, A exten
     }
 
     public select (attributeName: string) {
-        let Attr: AttributeConstructor;
+        const strategy = this.strategy;
+        const attr = getAttributeType(this.target, attributeName, strategy);
 
-        if (attributeName === '*') {
-            Attr = WildcardAttribute;
-        } else if (attributeName === 'id') { // TODO: get reserved names from strategy
-            Attr = this.strategy.getKeyAttribute();
-        } else {
-            const attrType = Reflect.getMetadata('attr:type', this.target, attributeName);
-            Attr = AttributeTypes[attrType];
-        }
-
-        if (Attr === undefined) {
+        if (!attr) {
             throw new Error('temporary nope');
         }
-
-        const strategy = this.strategy;
-        const attr = new Attr!(attributeName, this.strategy);
 
         if (attr.compatibleStrategies && !attr.compatibleStrategies.includes(this.storageType)) {
             throw new Error(`${this.storageType} storage strategy is incompatible with ${attr.typeName} attribute`);

@@ -1,6 +1,6 @@
 import * as Future from 'fluture';
 import {attrToComposite, IEntity} from '../../entity';
-import {Attribute, AttributeTypes, IAttribute} from '../Attribute';
+import {Attribute, AttributeTypes, getAttributeType, IAttribute} from '../Attribute';
 import {IStorageStrategy, StorageStrategy} from '../StorageStrategy';
 
 const AttributeTypeName: string = 'Unique';
@@ -41,7 +41,7 @@ export class UniqueAttribute <E extends IEntity, S extends IStorageStrategy<E, I
         return Future.of(item.sk);
     }
 
-    public store () {
+    public storeItem () {
         const entity = this.strategy.target;
 
         let item = {
@@ -52,13 +52,18 @@ export class UniqueAttribute <E extends IEntity, S extends IStorageStrategy<E, I
 
         // TODO: get ID attribute names from strategy
         Object.keys(entity).filter(key => key !== 'id' && key !== this.name).forEach(key => {
-            item = {
-                ...item,
-                [key]: typeof entity[key] === 'object' ? attrToComposite(entity[key]) : entity[key]
-            };
+            item = this.storeAttribute(item, entity, key);
         });
 
         return item;
+    }
+
+    public storeValue (value: any): string {
+        return value as string;
+    }
+
+    public loadValue (value: string): any {
+        return value;
     }
 
 }

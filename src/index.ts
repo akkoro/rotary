@@ -75,9 +75,9 @@ class User {
     public account: any;
 }
 
-// const f1 = query(User).select('phoneNumber').equals('tel:+445555555555');
-// const f2 = query(User).select('id').equals('360b99c1-341f-4ad4-a8b9-1f63668f421f');
-// Future.parallel(2, [f1, f2]).fork(console.error, console.log);
+const f1 = query(User).select('phoneNumber').equals('tel:+445555555555');
+const f2 = query(User).select('id').equals('360b99c1-341f-4ad4-a8b9-1f63668f421f');
+Future.parallel(2, [f1, f2]).fork(console.error, console.log);
 // query(User).fetch().fork(console.error, console.log);
 
 // Get user by exact name

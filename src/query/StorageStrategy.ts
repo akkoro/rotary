@@ -13,7 +13,7 @@ export interface IStorageStrategy<E extends IEntity, A extends IAttribute<E, ISt
     readonly target: E;
 
     makeEntity (item: any);
-    getKeyAttribute ();
+    getKeyAttributeConstructor ();
 
     attributeEquals <Attr extends IAttribute<E, this>> (attribute: Attr, value: string);
     attributeInRange ();

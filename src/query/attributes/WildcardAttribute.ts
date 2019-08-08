@@ -35,6 +35,14 @@ export class WildcardAttribute <EntityType extends IEntity,
         return undefined;
     }
 
-    public store () {}
+    public storeItem () {}
+
+    public storeValue (value: any): string {
+        return value as string;
+    }
+
+    public loadValue (value: string): any {
+        return value;
+    }
 
 }

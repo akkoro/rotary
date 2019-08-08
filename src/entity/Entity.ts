@@ -55,54 +55,6 @@ export function Entity (type?: EntityStorageType) {
                 }
             }
 
-            public storeRelational (cascade: boolean) {
-                if (this.tableType === EntityStorageType.TimeSeries) {
-                    throw new Error('attempted to store timeseries entity with storeRelational');
-                }
-
-                const items: object[] = [];
-
-                items.push(getRootItem(this));
-
-                const schemaFutures: Array<FutureInstance<any, any>> = [];
-                Object.keys(this).forEach(key => {
-                    if (Reflect.hasMetadata('name:unique', this, key)) {
-                        console.log(key.toUpperCase());
-                        items.push(getUniqueItem(this, key));
-                    }
-
-                    if (Reflect.hasMetadata('name:searchable', this, key)) {
-                        console.log(key.toUpperCase());
-                        items.push(getSearchableItem(this, key));
-
-                        if (isAttributeComposite(this, key) && Config.syncSchemaOnStore) {
-                            schemaFutures.push(SchemaRepository.store(constructor, this[key], key));
-                        }
-                    }
-
-                    if (Reflect.hasMetadata('name:ref', this, key)) {
-                        console.log(key.toUpperCase());
-                        items.push(getRefItem(this, key));
-                    }
-                });
-
-                const params = {
-                    RequestItems: {
-                        [Config.tableName]: items.map(body => {
-                            return {
-                                PutRequest: {
-                                    Item: body
-                                }
-                            };
-                        })
-                    }
-                };
-
-                return Future.parallel(2, schemaFutures).chain(() => Future.tryP(() => db.batchWrite(params).promise()));
-
-                // TODO: if (cascade), call store() on all Ref's
-            }
-
             public storeTimeSeries (cascade: boolean) {
                 if (this.tableType === EntityStorageType.Relational) {
                     throw new Error('attempted to store relational entity with storeTimeSeries');

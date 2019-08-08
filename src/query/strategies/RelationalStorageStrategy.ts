@@ -4,7 +4,7 @@ import {attrToComposite, EntityConstructor, IEntity, makeEntity} from '../../ent
 import {isAttributeComposite} from '../../entity/helpers';
 import {Config, SchemaRepository} from '../../index';
 import {StorageStrategies} from '../Query';
-import {Attribute, AttributeTypes, IAttribute} from '../Attribute';
+import {Attribute, AttributeTypes, getAttributeType, IAttribute} from '../Attribute';
 import {IStorageStrategy, StorageStrategy} from '../StorageStrategy';
 
 export class RelationalKeyAttribute<EntityType extends IEntity,
@@ -42,7 +42,33 @@ export class RelationalKeyAttribute<EntityType extends IEntity,
         return Future.of(item.pk.slice(item.pk.indexOf('#') + 1));
     }
 
-    public store () {}
+    public storeItem () {
+        const entity = this.strategy.target;
+
+        let item = {
+            pk: `${entity.tableName.toUpperCase()}#${entity.id}`,
+            sk: entity.tableName.toUpperCase(),
+            data: '$nil'
+        };
+
+        // TODO: get ID attribute names from strategy
+        //       OR use 'id' universally (since it's part of IEntity) and then have another list of reserved names
+        Object.keys(entity)
+            .filter(key => key !== 'id')
+            .forEach(key => {
+                item = this.storeAttribute(item, entity, key);
+            });
+
+        return item;
+    }
+
+    public storeValue (value: any): string {
+        return value as string;
+    }
+
+    public loadValue (value: string): any {
+        return value;
+    }
 }
 
 export class RelationalStorageStrategy<E extends IEntity, A extends IAttribute<E, IStorageStrategy<E, A>>>
@@ -59,7 +85,7 @@ export class RelationalStorageStrategy<E extends IEntity, A extends IAttribute<E
         return makeEntity(this.ctor)({id: item['pk'].split('#')[1]});
     }
 
-    public getKeyAttribute () {
+    public getKeyAttributeConstructor () {
         return RelationalKeyAttribute;
     }
 
@@ -74,28 +100,20 @@ export class RelationalStorageStrategy<E extends IEntity, A extends IAttribute<E
     public attributeInRange () {
     }
 
-    public loadEntity (item: any, byAttribute: IAttribute<E, IStorageStrategy<E, A>>) {
+    public loadEntity (item: any, queriedByAttribute: IAttribute<E, IStorageStrategy<E, A>>) {
         const futures: Array<FutureInstance<any, any>> = [];
         const entity = this.makeEntity(item);
 
         Object.keys(item).filter((key) => !['pk', 'sk', 'data'].includes(key))
             .forEach((key) => {
-                if (typeof item[key] === 'string' && (item[key] as string).charAt(0) === '#') {
-                    const f = SchemaRepository.resolve(this.ctor, key)
-                        .map(SchemaRepository.getValueMapper(item[key]))
-                        .map(keyValue => (entity[key] = keyValue))
-                    ;
-
-                    futures.push(f);
-                } else {
-                    entity[key] = item[key];
-                }
+                const attr = getAttributeType(entity, key, this);
+                entity[key] = attr ? attr.loadValue(item[key]) : item[key];
             });
 
         // Key values are stored differently for each attribute type
-        const value = byAttribute.loadKeyValue(item);
+        const value = queriedByAttribute.loadKeyValue(item);
         if (value) {
-            futures.push(value.map(keyValue => (entity[byAttribute.name] = keyValue)));
+            futures.push(value.map(keyValue => (entity[queriedByAttribute.name] = keyValue)));
         }
 
         return Future.parallel(2, futures).chain(() => Future.of(entity));
@@ -107,40 +125,21 @@ export class RelationalStorageStrategy<E extends IEntity, A extends IAttribute<E
         }
 
         const items: object[] = [];
-
-        // TODO: the root item can be moved to RelationalKeyAttribute.store()
-        let rootItem = {
-            pk: `${entity.tableName.toUpperCase()}#${entity.id}`,
-            sk: entity.tableName.toUpperCase(),
-            data: '$nil'
-        };
-
         const schema: Array<FutureInstance<any, any>> = [];
-        let attributeValues = {};
 
         // For each attribute in the entity
-        Object.keys(entity).filter(key => key !== 'id').forEach(key => {
-            // Append attribute to the root item
-            attributeValues = {
-                ...attributeValues,
-                [key]: isAttributeComposite(entity, key) ? attrToComposite(entity[key]) : entity[key]
-            };
-
+        Object.keys(entity).forEach(key => {
             // Store schema for attribute if it is a composite attribute
-            if (isAttributeComposite(entity, key) && Config.syncSchemaOnStore) {
-                schema.push(SchemaRepository.store(this.ctor, entity[key], key));
-            }
+            // if (isAttributeComposite(entity, key) && Config.syncSchemaOnStore) {
+            //     schema.push(SchemaRepository.store(this.ctor, entity[key], key));
+            // }
 
             // Store attribute items if specified
-            const attrType = Reflect.getMetadata('attr:type', entity, key);
-            if (attrType) {
-                const attr = new AttributeTypes[attrType](key, this);
-                items.push(attr.store());
+            const attr = getAttributeType(entity, key, this);
+            if (attr) {
+                items.push(attr.storeItem());
             }
         });
-
-        rootItem = {...rootItem, ...attributeValues};
-        items.push(rootItem);
 
         const params = {
             RequestItems: {
