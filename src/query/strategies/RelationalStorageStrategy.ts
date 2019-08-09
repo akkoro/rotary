@@ -1,11 +1,11 @@
 import {FutureInstance} from 'fluture';
 import * as Future from 'fluture';
-import {attrToComposite, EntityConstructor, IEntity, makeEntity} from '../../entity';
-import {isAttributeComposite} from '../../entity/helpers';
-import {Config, SchemaRepository} from '../../index';
+import {EntityConstructor, IEntity, makeEntity} from '../../entity';
+import {Config} from '../../index';
 import {StorageStrategies} from '../Query';
-import {Attribute, AttributeTypes, getAttributeType, IAttribute} from '../Attribute';
+import {Attribute, IAttribute} from '../Attribute';
 import {IStorageStrategy, StorageStrategy} from '../StorageStrategy';
+import {getAttributeType} from "../util";
 
 export class RelationalKeyAttribute<EntityType extends IEntity,
     StrategyType extends IStorageStrategy<EntityType, IAttribute<EntityType, StrategyType>>>

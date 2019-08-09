@@ -5,13 +5,12 @@ import {EntityConstructor, IEntity} from '../entity';
 import {EntityStorageType, makeEntity} from '../entity';
 import {Config} from '../index';
 import {SchemaRepository} from '../Schema';
-import {AttributeConstructor, AttributeTypes, getAttributeType, IAttribute} from './Attribute';
-import {UniqueAttribute} from './attributes/UniqueAttribute';
-import {WildcardAttribute} from './attributes/WildcardAttribute';
+import {IAttribute} from './Attribute';
 import Key from './Key';
 import Filter from './Filter';
 import {Executor, FilterProps} from './index';
 import {IStorageStrategy} from './StorageStrategy';
+import {getAttributeType} from "./util";
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();

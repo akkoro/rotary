@@ -1,7 +1,7 @@
 import * as Future from 'fluture';
-import {attrToComposite, IEntity} from '../../entity';
-import {Attribute, AttributeTypes, getAttributeType, IAttribute} from '../Attribute';
-import {IStorageStrategy, StorageStrategy} from '../StorageStrategy';
+import {IEntity} from '../../entity';
+import {Attribute, AttributeTypes, IAttribute} from '../Attribute';
+import {IStorageStrategy} from '../StorageStrategy';
 
 const AttributeTypeName: string = 'Unique';
 const CompatibleStrategies: string[] = ['Relational'];

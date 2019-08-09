@@ -1,8 +1,8 @@
 import * as Future from 'fluture';
 import {FutureInstance} from 'fluture';
-import { IEntity} from '../entity';
-// import {WildcardAttribute} from './attributes/WildcardAttribute';
+import {IEntity} from '../entity';
 import {IStorageStrategy} from './StorageStrategy';
+import {getAttributeType} from './util';
 
 export interface AttributeDynamoParams {
     KeyConditionExpression?: string;
@@ -73,25 +73,3 @@ export class Attribute<E extends IEntity, S extends IStorageStrategy<E, IAttribu
 }
 
 export const AttributeTypes: {[name: string]: AttributeConstructor} = {};
-
-export function getAttributeType
-<E extends IEntity, A extends IAttribute<E, S>, S extends IStorageStrategy<E, A>>
-(target: E, attributeName: string, strategy: S): IAttribute<E, S> {
-
-    // if (attributeName === '*') {
-    //     return new WildcardAttribute('*', strategy);
-    // }
-
-    if (attributeName === 'id') {
-        return new (strategy.getKeyAttributeConstructor())('id', strategy);
-    }
-
-    const attrType = Reflect.getMetadata('attr:type', target, attributeName);
-    if (attrType) {
-        return new AttributeTypes[attrType](attributeName, strategy);
-    }
-
-    // return Future.reject('no attribute type found for');
-    return null;
-
-}
