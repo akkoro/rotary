@@ -2,10 +2,10 @@ import 'reflect-metadata';
 import './query/strategies/RelationalStorageStrategy';
 import './query/attributes/UniqueAttribute';
 import * as AWS from 'aws-sdk';
-import * as Future from 'fluture';
 import {query} from './query';
 import {Unique} from './query/attributes/UniqueAttribute';
-import {IEntity, EntityStorageType, makeEntity, Searchable, Ref, Entity} from './entity';
+import {Searchable} from './query/attributes/SearchableAttribute';
+import {Ref, Entity} from './entity';
 
 export class Config {
     public static tableName: string;
@@ -40,7 +40,7 @@ Config.syncSchemaOnStore = false; // Disable sync in production
 
 @Entity()
 class Account {
-    @Searchable
+    @Searchable()
     public type: string;
 }
 
@@ -62,23 +62,24 @@ class User {
     @Unique
     public phoneNumber: string;
 
-    @Searchable
+    @Searchable(true)
     public address: UserAddress;
 
-    @Searchable
+    @Searchable(true)
     public name: UserName;
 
-    @Searchable
+    @Searchable()
     public type: string;
 
     @Ref(Account)
     public account: any;
 }
 
-const f1 = query(User).select('phoneNumber').equals('tel:+445555555555');
-const f2 = query(User).select('id').equals('360b99c1-341f-4ad4-a8b9-1f63668f421f');
-Future.parallel(2, [f1, f2]).fork(console.error, console.log);
+// const f1 = query(User).select('phoneNumber').equals('tel:+445555555555');
+// const f2 = query(User).select('id').equals('360b99c1-341f-4ad4-a8b9-1f63668f421f');
+// Future.parallel(2, [f1, f2]).fork(console.error, console.log);
 // query(User).fetch().fork(console.error, console.log);
+query(User).select('name').match({last: 'Fandango'}).fork(console.error, console.log);
 
 // Get user by exact name
 // query(User).with('name').equals({first: 'Clem', last: 'Fandango'}).exec().fork(console.error, console.log);

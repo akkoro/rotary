@@ -1,4 +1,3 @@
-import * as Future from 'fluture';
 import {IEntity} from '../../entity';
 import {Attribute, IAttribute} from '../Attribute';
 import {IStorageStrategy} from '../StorageStrategy';

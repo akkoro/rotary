@@ -171,6 +171,18 @@ export class Query2<E extends IEntity, S extends IStorageStrategy<E, A>, A exten
                     .chain((entities: Array<FutureInstance<any, E>>) => Future.parallel(2, entities))
                 ;
             }
+
+            public match (value: any) {
+                const params = strategy.attributeMatches(attr, value);
+                return Future.tryP(() => db.query(params).promise())
+                    .map(result => result.Items.map(item => strategy.loadEntity(item, attr)))
+                    .chain((entities: Array<FutureInstance<any, E>>) => Future.parallel(2, entities))
+                ;
+            }
+
+            public range (start: any, end?: any) {
+
+            }
         })();
     }
 

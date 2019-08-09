@@ -72,25 +72,18 @@ export class RelationalStorageStrategy<E extends IEntity, A extends IAttribute<E
         return RelationalKeyAttribute;
     }
 
-    public attributeEquals <Attr extends IAttribute<E, this>> (attribute: Attr, value: string) {
-        return {
-            TableName: this.tableName,
-            IndexName: attribute.indexName,
-            ...attribute.equals(value)
-        };
-    }
-
-    public attributeInRange () {
-    }
-
     public loadEntity (item: any, queriedByAttribute: IAttribute<E, IStorageStrategy<E, A>>) {
         const futures: Array<FutureInstance<any, any>> = [];
         const entity = this.makeEntity(item);
 
         Object.keys(item).filter((key) => !['pk', 'sk', 'data'].includes(key))
-            .forEach((key) => {
+            .forEach(key => {
                 const attr = getAttributeType(entity, key, this);
-                entity[key] = attr ? attr.loadValue(item, entity, key) : item[key];
+                if (attr) {
+                    futures.push(attr.loadValue(item, entity, key).map(v => (entity[key] = v)));
+                } else {
+                    entity[key] = item[key];
+                }
             });
 
         // Key values are stored differently for each attribute type
@@ -108,15 +101,9 @@ export class RelationalStorageStrategy<E extends IEntity, A extends IAttribute<E
         }
 
         const items: object[] = [];
-        const schema: Array<FutureInstance<any, any>> = [];
 
         // For each attribute in the entity
         Object.keys(entity).forEach(key => {
-            // Store schema for attribute if it is a composite attribute
-            // if (isAttributeComposite(entity, key) && Config.syncSchemaOnStore) {
-            //     schema.push(SchemaRepository.store(this.ctor, entity[key], key));
-            // }
-
             // Store attribute items if specified
             const attr = getAttributeType(entity, key, this);
             if (attr) {
@@ -136,9 +123,7 @@ export class RelationalStorageStrategy<E extends IEntity, A extends IAttribute<E
             }
         };
 
-        return Future.parallel(2, schema)
-            .chain(() => Future.tryP(() => Config.db.batchWrite(params).promise()))
-        ;
+        return Future.tryP(() => Config.db.batchWrite(params).promise());
     }
 
 }

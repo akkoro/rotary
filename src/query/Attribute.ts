@@ -1,6 +1,8 @@
-import {EntityStorageType, IEntity} from '../entity';
-import {WildcardAttribute} from './attributes/WildcardAttribute';
-import {IStorageStrategy, StorageStrategy} from './StorageStrategy';
+import * as Future from 'fluture';
+import {FutureInstance} from 'fluture';
+import { IEntity} from '../entity';
+// import {WildcardAttribute} from './attributes/WildcardAttribute';
+import {IStorageStrategy} from './StorageStrategy';
 
 export interface AttributeDynamoParams {
     KeyConditionExpression?: string;
@@ -25,7 +27,7 @@ export interface IAttribute<E extends IEntity, S extends IStorageStrategy<E, IAt
     loadKeyValue (item: any): any;
     storeItem ();
     storeValue (target: E, key: string, value?: any): string;
-    loadValue (item: any, target: E, key: string): any;
+    loadValue (item: any, target: E, key: string): FutureInstance<any, any>;
 }
 
 export class Attribute<E extends IEntity, S extends IStorageStrategy<E, IAttribute<E, S>>> {
@@ -56,8 +58,8 @@ export class Attribute<E extends IEntity, S extends IStorageStrategy<E, IAttribu
         return value || entity[key] as string;
     }
 
-    public loadValue (item: any, target: E, key: string): any {
-        return item[key];
+    public loadValue (item: any, target: E, key: string): FutureInstance<any, any> {
+        return Future.of(item[key]);
     }
 
     protected storeAttribute (item: any, entity: E, key: string) {
@@ -76,9 +78,9 @@ export function getAttributeType
 <E extends IEntity, A extends IAttribute<E, S>, S extends IStorageStrategy<E, A>>
 (target: E, attributeName: string, strategy: S): IAttribute<E, S> {
 
-    if (attributeName === '*') {
-        return new WildcardAttribute('*', strategy);
-    }
+    // if (attributeName === '*') {
+    //     return new WildcardAttribute('*', strategy);
+    // }
 
     if (attributeName === 'id') {
         return new (strategy.getKeyAttributeConstructor())('id', strategy);
@@ -89,6 +91,7 @@ export function getAttributeType
         return new AttributeTypes[attrType](attributeName, strategy);
     }
 
+    // return Future.reject('no attribute type found for');
     return null;
 
 }

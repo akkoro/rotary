@@ -45,7 +45,7 @@ export class UniqueAttribute <E extends IEntity, S extends IStorageStrategy<E, I
         };
 
         // TODO: get ID attribute names from strategy
-        Object.keys(entity).filter(key => key !== 'id' && key !== this.name).forEach(key => {
+        Object.keys(entity).filter(key => key !== 'id' && key !== this.name).map(key => {
             item = this.storeAttribute(item, entity, key);
         });
 

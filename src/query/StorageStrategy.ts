@@ -1,9 +1,5 @@
-import * as Future from 'fluture';
-import {FutureInstance} from 'fluture';
-import {attrToComposite, EntityConstructor, EntityStorageType, IEntity} from '../entity';
-import {isAttributeComposite} from '../entity/helpers';
-import {Config, SchemaRepository} from '../index';
-import {AttributeTypes, IAttribute} from './Attribute';
+import {EntityConstructor, EntityStorageType, IEntity} from '../entity';
+import {IAttribute} from './Attribute';
 
 export interface IStorageStrategy<E extends IEntity, A extends IAttribute<E, IStorageStrategy<E, A>>> {
 
@@ -16,7 +12,8 @@ export interface IStorageStrategy<E extends IEntity, A extends IAttribute<E, ISt
     getKeyAttributeConstructor ();
 
     attributeEquals <Attr extends IAttribute<E, this>> (attribute: Attr, value: string);
-    attributeInRange ();
+    attributeMatches <Attr extends IAttribute<E, this>> (attribute: Attr, value: any);
+    // attributeInRange ();
 
     loadEntity (item: any, attribute: IAttribute<E, IStorageStrategy<E, A>>);
     storeEntity (entity: E, cascade?: boolean);
@@ -24,6 +21,7 @@ export interface IStorageStrategy<E extends IEntity, A extends IAttribute<E, ISt
 
 export class StorageStrategy<E extends IEntity> {
 
+    public readonly tableName: string;
     public readonly storageType: string;
     public readonly ctor: EntityConstructor;
     public readonly target: E;
@@ -42,6 +40,22 @@ export class StorageStrategy<E extends IEntity> {
         //         this.tableName = `${Config.tableName}-${this.target['tableName'].toUpperCase()}`;
         //         break;
         // }
+    }
+
+    public attributeEquals <S extends IStorageStrategy<E, A>, A extends IAttribute<E, S>> (attribute: A, value: string) {
+        return {
+            TableName: this.tableName,
+            IndexName: attribute.indexName,
+            ...attribute.equals(value)
+        };
+    }
+
+    public attributeMatches <S extends IStorageStrategy<E, A>, A extends IAttribute<E, S>> (attribute: A, value: string) {
+        return {
+            TableName: this.tableName,
+            IndexName: attribute.indexName,
+            ...attribute.match(value)
+        };
     }
 
 }

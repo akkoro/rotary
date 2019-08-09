@@ -93,17 +93,6 @@ class Schema {
             }
         };
 
-        // const results = await db.query(params).promise();
-        // results.Items.forEach(item => {
-        //     const schemaKey = (item['pk'] as string).split('#')[1];
-        //     const schema = this.fromItem(item);
-        //     this.schemas = {
-        //         ...this.schemas,
-        //         [schemaKey]: schema
-        //     };
-        // });
-        //
-        // console.log(this.schemas);
         return Future.tryP(() => db.query(params).promise())
             .map(result => result.Items)
             .map(items => {
