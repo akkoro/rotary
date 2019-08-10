@@ -43,16 +43,11 @@ export function Entity (type?: EntityStorageType) {
             // @ts-ignore
             public store (cascade?: boolean) {
                 const strategy = new StorageStrategies[this.tableType](this.constructor, this);
-                strategy.storeEntity(this);
+                return strategy.storeEntity(this);
 
-                switch (this.tableType) {
-                    case EntityStorageType.TimeSeries: {
-                        return this.storeTimeSeries(cascade);
-                    }
-
-                    default:
-                        throw new Error(`unknown entity type ${this.tableType}`);
-                }
+                // if (this.tableType === EntityStorageType.TimeSeries) {
+                //     return this.storeTimeSeries(cascade);
+                // }
             }
 
             public storeTimeSeries (cascade: boolean) {

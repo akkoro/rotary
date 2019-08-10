@@ -20,9 +20,10 @@ export interface IAttribute<E extends IEntity, S extends IStorageStrategy<E, IAt
 
     compatibleStrategies?: string[];
 
+    // TODO: narrow return types
     equals (value: any): AttributeDynamoParams;
-    range (): any;
     match (value: any): any;
+    range (args: {start?: any, end?: any}): any;
 
     loadKeyValue (item: any): any;
     storeItem ();
@@ -45,13 +46,13 @@ export class Attribute<E extends IEntity, S extends IStorageStrategy<E, IAttribu
         throw new Error(`${this.typeName} attributes cannot be queried by equality`);
     }
 
-    public range () {
-        // TODO: if this is a time series entity we can
-        throw new Error(`${this.typeName} attributes cannot be queried by range`);
-    }
-
     public match (value: any): any {
         throw new Error(`${this.typeName} attributes cannot be queried by match`);
+    }
+
+    public range (args: {start?: any, end?: any}) {
+        // TODO: if this is a time series entity we can
+        throw new Error(`${this.typeName} attributes cannot be queried by range`);
     }
 
     public storeValue (entity: E, key: string, value?: any): string {

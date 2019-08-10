@@ -10,7 +10,7 @@ import Key from './Key';
 import Filter from './Filter';
 import {Executor, FilterProps} from './index';
 import {IStorageStrategy} from './StorageStrategy';
-import {getAttributeType} from "./util";
+import {getAttributeType} from './util';
 
 AWS.config.region = 'us-east-1';
 const db = new AWS.DynamoDB.DocumentClient();
@@ -179,8 +179,12 @@ export class Query2<E extends IEntity, S extends IStorageStrategy<E, A>, A exten
                 ;
             }
 
-            public range (start: any, end?: any) {
-
+            public range (args: {start?: any, end?: any}) {
+                const params = strategy.attributeInRange(attr, args);
+                return Future.tryP(() => db.query(params).promise())
+                    .map(result => result.Items.map(item => strategy.loadEntity(item, attr)))
+                    .chain((entities: Array<FutureInstance<any, E>>) => Future.parallel(2, entities))
+                ;
             }
         })();
     }

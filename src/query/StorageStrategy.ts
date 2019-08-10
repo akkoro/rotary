@@ -13,7 +13,7 @@ export interface IStorageStrategy<E extends IEntity, A extends IAttribute<E, ISt
 
     attributeEquals <Attr extends IAttribute<E, this>> (attribute: Attr, value: string);
     attributeMatches <Attr extends IAttribute<E, this>> (attribute: Attr, value: any);
-    // attributeInRange ();
+    attributeInRange <Attr extends IAttribute<E, this>> (attribute: Attr, args: {start?: any, end?: any});
 
     loadEntity (item: any, attribute: IAttribute<E, IStorageStrategy<E, A>>);
     storeEntity (entity: E, cascade?: boolean);
@@ -55,6 +55,14 @@ export class StorageStrategy<E extends IEntity> {
             TableName: this.tableName,
             IndexName: attribute.indexName,
             ...attribute.match(value)
+        };
+    }
+
+    public attributeInRange <S extends IStorageStrategy<E, A>, A extends IAttribute<E, S>> (attribute: A, args: {start?: any, end?: any}) {
+        return {
+            TableName: this.tableName,
+            IndexName: attribute.indexName,
+            ...attribute.range(args)
         };
     }
 

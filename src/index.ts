@@ -5,7 +5,7 @@ import * as AWS from 'aws-sdk';
 import {query} from './query';
 import {Unique} from './query/attributes/UniqueAttribute';
 import {Searchable} from './query/attributes/SearchableAttribute';
-import {Ref, Entity} from './entity';
+import {Ref, Entity, IEntity, makeEntity} from './entity';
 
 export class Config {
     public static tableName: string;
@@ -62,14 +62,17 @@ class User {
     @Unique
     public phoneNumber: string;
 
-    @Searchable(true)
+    @Searchable({composite: true})
     public address: UserAddress;
 
-    @Searchable(true)
+    @Searchable({composite: true})
     public name: UserName;
 
     @Searchable()
     public type: string;
+
+    @Searchable({maxValue: 100})
+    public typeN: number;
 
     @Ref(Account)
     public account: any;
@@ -79,7 +82,8 @@ class User {
 // const f2 = query(User).select('id').equals('360b99c1-341f-4ad4-a8b9-1f63668f421f');
 // Future.parallel(2, [f1, f2]).fork(console.error, console.log);
 // query(User).fetch().fork(console.error, console.log);
-query(User).select('name').match({last: 'Fandango'}).fork(console.error, console.log);
+// query(User).select('name').match({last: 'Fandango'}).fork(console.error, console.log);
+query(User).select('typeN').range({start: -15, end: -1}).fork(console.error, console.log);
 
 // Get user by exact name
 // query(User).with('name').equals({first: 'Clem', last: 'Fandango'}).exec().fork(console.error, console.log);
@@ -108,8 +112,8 @@ query(User).select('name').match({last: 'Fandango'}).fork(console.error, console
 // Get all users belonging to Account ID b8c80039-1c35-42cc-8444-68cce76b4e0f
 // query(User).with('account').equals('b8c80039-1c35-42cc-8444-68cce76b4e0f').exec().fork(console.error, console.log);
 
-// const u = makeEntity(User)({id: 'u1'}) as User & IEntity;
+// const u = makeEntity(User)({id: 'u24'}) as User & IEntity;
 // const a = makeEntity(Account)({id: 'a2'});
-// u.email = 'test@gmail.com';
+// u.typeN = -3;
 // u.account = a;
-// u.store();
+// u.store().fork(console.error, console.log);
