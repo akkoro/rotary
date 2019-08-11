@@ -180,12 +180,18 @@ export class Query2<E extends IEntity, S extends IStorageStrategy<E, A>, A exten
             }
 
             public range (args: {start?: any, end?: any}) {
-                // const {start, end} = args;
-                // if (start < 0 && end > 0) {
-                //     return Future.parallel(1, [this.range({start, end: 0}), this.range({start: 1, end})])
-                //         .map(r => r.map(v => v))
-                //     ;
-                // }
+                const {start, end} = args;
+                if (start <= 0 && end > 0) {
+                    return Future.parallel(1, [this.range({start, end: 0}), this.range({start: 1, end})])
+                        .map(r => {
+                            const ret: any[] = [];
+                            r.forEach((searchResult: any[]) => {
+                                ret.push(...searchResult);
+                            });
+                            return ret;
+                        })
+                    ;
+                }
 
                 const params = strategy.attributeInRange(attr, args);
                 return Future.tryP(() => db.query(params).promise())

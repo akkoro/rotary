@@ -65,17 +65,19 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
         const entity = this.strategy.target;
         let {start, end} = args;
 
+        const negStart = start <= 0;
+
         if (typeof start === 'number') {
-            start = encode(start, maxNumberPadding);
+            start = start > 0 ? encode(start, maxNumberPadding) : encode(Math.abs(start) + maxInt);
         }
 
         if (typeof end === 'number') {
-            end = encode(end, maxNumberPadding);
+            end = end > 0 ? encode(end, maxNumberPadding) : encode(Math.abs(end) + maxInt);
         }
 
         let op;
         if (start && end) {
-            op = '#data between :t1 and :t2';
+            op = negStart ? '#data between :t2 and :t1' : '#data between :t1 and :t2';
         } else if (start && !end) {
             op = '#data >= :t1';
         } else if (!start && end) {
@@ -142,6 +144,10 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
         }
 
         if (typeof attr === 'number') {
+            if (isSigned && attr < 0) {
+                return encode(Math.abs(attr) + maxInt, maxNumberPadding);
+            }
+
             return encode(attr, maxNumberPadding);
         }
 
@@ -150,12 +156,13 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
 
     public loadValue (item: any, target: E, key: string): FutureInstance<any, any> {
         const isComposite = Reflect.getMetadata('flag:composite', target, key);
+        const isSigned = Reflect.getMetadata('flag:signed', target, key);
 
         if (typeof item === 'string') {
             const asStr = (item as string).replace(/\$/g, '');
 
             if (asStr[0] === '-' || asStr[0] === '+') {
-                return Future.of(decode(asStr));
+                return Future.of(decode(asStr, isSigned));
             }
 
             if (!((asStr as string)[0] === '#' && isComposite)) {
@@ -179,7 +186,7 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
             }
 
             if (asStr[0] === '-' || asStr[0] === '+') {
-                return Future.of(decode(asStr));
+                return Future.of(decode(asStr, isSigned));
             }
         }
 
@@ -225,38 +232,25 @@ function encode (n: number, padTo?: number) {
     return encoded;
 }
 
-function invert (s: string) {
-    let tmp = '';
-    for (const c of s) {
-        tmp = `${tmp}${(9 - parseInt(c, 10)).toString()}`;
-    }
-    return tmp;
-}
-
-function decode (s: string) {
+function decode (s: string, isSigned?: boolean) {
     if (s.charAt(0) === '0') {
         return 0;
     }
 
-    const isPositive = s.charAt(0) === '+';
-
     const ret = (slice: string) => {
-        if (isPositive) {
-            return parseInt(slice, 10);
-        } else {
-            const converted = invert(slice);
-            return -parseInt(converted, 10);
+        let n = parseInt(slice, 10);
+        if (isSigned && n > (maxInt / 2)) {
+            n = -(n - maxInt);
         }
-    };
 
-    let symbol;
-    if (isPositive) { symbol = '+'; } else { symbol = '-'; }
+        return n;
+    };
 
     let sequenceLength = 0;
     let nextLength = 0;
 
     for (const c of s.slice(1)) {
-        if (c === symbol) { sequenceLength++; }
+        if (c === '+') { sequenceLength++; }
     }
 
     if (!sequenceLength) {
@@ -271,18 +265,10 @@ function decode (s: string) {
             ll += 1;
 
             const p = s[i];
-            if (isPositive) {
-                nextLength = parseInt(p, 10);
-            } else {
-                nextLength = parseInt(invert(p), 10);
-            }
+            nextLength = parseInt(p, 10);
         } else {
             const p = s.slice(i, i + nextLength);
-            if (isPositive) {
-                nextLength = parseInt(p, 10);
-            } else {
-                nextLength = parseInt(invert(p), 10);
-            }
+            nextLength = parseInt(p, 10);
         }
     }
     base += ll;
