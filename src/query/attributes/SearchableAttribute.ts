@@ -9,16 +9,11 @@ import {IStorageStrategy} from '../StorageStrategy';
 const AttributeTypeName: string = 'Searchable';
 const CompatibleStrategies: string[] = ['Relational'];
 
-function numberToString (v: number, maxValue: number) {
-    return `${v < 0 ? '-' : '+'}0d${Math.abs(v).toString().padStart(maxValue.toString().length, '0')}`;
-}
-
 export function Searchable (args?: {composite?: boolean, maxValue?: number}) {
     return function (target: any, key: string) {
         Reflect.defineMetadata('attr:type', AttributeTypeName, target, key);
         if (args) {
             Reflect.defineMetadata('flag:composite', args.composite, target, key);
-            Reflect.defineMetadata('opt:maxValue', args.maxValue, target, key);
         }
     };
 }
@@ -64,16 +59,14 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
 
     public range (args: {start?: any, end?: any}): any {
         const entity = this.strategy.target;
-
-        const maxValue = Reflect.getMetadata('opt:maxValue', entity, this.name);
         let {start, end} = args;
 
         if (typeof start === 'number') {
-            start = numberToString(start, maxValue);
+            start = encode(start);
         }
 
         if (typeof end === 'number') {
-            end = numberToString(end, maxValue);
+            end = encode(end);
         }
 
         let op;
@@ -124,7 +117,6 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
     public storeValue (entity: E, key: string, value?: any): string {
         const attr = value || entity[key];
         const isComposite = Reflect.getMetadata('flag:composite', entity, key);
-        const maxValue = Reflect.getMetadata('opt:maxValue', entity, key);
 
         if (typeof attr === 'object' && isComposite) {
             let composite: string = '';
@@ -143,8 +135,8 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
             return composite;
         }
 
-        if (typeof attr === 'number' && maxValue) {
-            return numberToString(attr, maxValue);
+        if (typeof attr === 'number') {
+            return encode(attr);
         }
 
         return attr;
@@ -153,13 +145,8 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
     public loadValue (item: any, target: E, key: string): FutureInstance<any, any> {
         const isComposite = Reflect.getMetadata('flag:composite', target, key);
 
-        if (typeof item === 'string') {
-            if ((item as string).startsWith('+0d')) {
-                return Future.of(parseInt(item.slice(3), 10));
-            }
-            if ((item as string).startsWith('-0d')) {
-                return Future.of(-parseInt(item.slice(3), 10));
-            }
+        if (typeof item === 'string' && (item[0] === '-' || item[0] === '+')) {
+            return Future.of(decode(item));
         }
 
         if (typeof item === 'string' && !((item as string).charAt(0) === '#' && isComposite)) {
@@ -178,13 +165,8 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
             ;
         }
 
-        if (typeof item[key] === 'string') {
-            if ((item[key] as string).startsWith('+0d')) {
-                return Future.of(parseInt(item[key].slice(3), 10));
-            }
-            if ((item[key] as string).startsWith('-0d')) {
-                return Future.of(-parseInt(item[key].slice(3), 10));
-            }
+        if (typeof item[key] === 'string' && (item[key][0] === '-' || item[key][0] === '+')) {
+            return Future.of(decode(item[key]));
         }
 
         return Future.of(item[key]);
@@ -193,3 +175,98 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
 }
 
 AttributeTypes[AttributeTypeName] = SearchableAttribute;
+
+// TODO: numbers need to be left-padded. will need maxValue again.
+
+function encodePositive (n: number, s?: string) {
+    let str = '';
+    if (n > 0) { str = `${s || str}+`; }
+    if (n.toString().length > 1) { str = encodePositive(n.toString().length, str); }
+    return `${str}${n.toString()}`;
+}
+
+function encodeNegative (n: number, s?: string) {
+    let str = '';
+    if (n > 0) { str = `${s || str}-`; }
+    if (n.toString().length > 1) { str = encodeNegative(n.toString().length, str); }
+    str = `${str}${n.toString()}`;
+
+    let tmp = '';
+    for (const c of str) {
+        if (c === '-') { tmp = `${tmp}${c}`; } else {
+            tmp = `${tmp}${(9 - parseInt(c, 10)).toString()}`;
+        }
+    }
+
+    return tmp;
+}
+
+function encode (n: number) {
+    if (n === 0) { return '0'; }
+    return n < 0 ? encodeNegative(Math.abs(n)) : encodePositive(n);
+}
+
+function invert (s: string) {
+    let tmp = '';
+    for (const c of s) {
+        tmp = `${tmp}${(9 - parseInt(c, 10)).toString()}`;
+    }
+    return tmp;
+}
+
+function decode (s: string) {
+    if (s.charAt(0) === '0') {
+        return 0;
+    }
+
+    const isPositive = s.charAt(0) === '+';
+
+    const ret = (slice: string) => {
+        if (isPositive) {
+            return parseInt(slice, 10);
+        } else {
+            const converted = invert(slice);
+            return -parseInt(converted, 10);
+        }
+    };
+
+    let symbol;
+    if (isPositive) { symbol = '+'; } else { symbol = '-'; }
+
+    let sequenceLength = 0;
+    let nextLength = 0;
+
+    for (const c of s.slice(1)) {
+        if (c === symbol) { sequenceLength++; }
+    }
+
+    if (!sequenceLength) {
+        return ret(s.slice(1));
+    }
+
+    let ll = 0;
+    let base = 1 + sequenceLength;
+    for (let i = base; i < sequenceLength + base; i++) {
+        ll += nextLength;
+        if (i === base) {
+            ll += 1;
+
+            const p = s[i];
+            if (isPositive) {
+                nextLength = parseInt(p, 10);
+            } else {
+                nextLength = parseInt(invert(p), 10);
+            }
+        } else {
+            const p = s.slice(i, i + nextLength);
+            if (isPositive) {
+                nextLength = parseInt(p, 10);
+            } else {
+                nextLength = parseInt(invert(p), 10);
+            }
+        }
+    }
+    base += ll;
+
+    return ret(s.slice(base, base + nextLength));
+}
