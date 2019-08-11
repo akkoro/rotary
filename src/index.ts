@@ -73,7 +73,7 @@ class User {
     @Searchable()
     public type: string;
 
-    @Searchable({maxValue: 100})
+    @Searchable({signed: true})
     public typeN: number;
 
     @Ref(Account)
@@ -112,8 +112,12 @@ class User {
 // Get all users belonging to Account ID b8c80039-1c35-42cc-8444-68cce76b4e0f
 // query(User).with('account').equals('b8c80039-1c35-42cc-8444-68cce76b4e0f').exec().fork(console.error, console.log);
 
-// const u = makeEntity(User)({id: 'u22'}) as User & IEntity;
-// u.typeN = 33;
-// u.store().fork(console.error, console.log);
+const u1 = makeEntity(User)({id: 'u19'}) as User & IEntity;
+u1.typeN = 3;
+u1.store().fork(console.error, console.log);
+//
+// const u2 = makeEntity(User)({id: 'u20'}) as User & IEntity;
+// u2.typeN = 435;
+// u2.store().fork(console.error, console.log);
 
 query(User).select('typeN').range({start: 1, end: 435}).fork(console.error, console.log);

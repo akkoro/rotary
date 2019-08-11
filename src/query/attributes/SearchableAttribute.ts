@@ -9,11 +9,15 @@ import {IStorageStrategy} from '../StorageStrategy';
 const AttributeTypeName: string = 'Searchable';
 const CompatibleStrategies: string[] = ['Relational'];
 
-export function Searchable (args?: {composite?: boolean, maxValue?: number}) {
+const maxInt = 281474976710654;
+const maxNumberPadding = encode(maxInt).length;
+
+export function Searchable (args?: {composite?: boolean, signed?: boolean}) {
     return function (target: any, key: string) {
         Reflect.defineMetadata('attr:type', AttributeTypeName, target, key);
         if (args) {
             Reflect.defineMetadata('flag:composite', args.composite, target, key);
+            Reflect.defineMetadata('flag:signed', args.signed, target, key);
         }
     };
 }
@@ -62,11 +66,11 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
         let {start, end} = args;
 
         if (typeof start === 'number') {
-            start = encode(start);
+            start = encode(start, maxNumberPadding);
         }
 
         if (typeof end === 'number') {
-            end = encode(end);
+            end = encode(end, maxNumberPadding);
         }
 
         let op;
@@ -88,7 +92,8 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
                 ':sk': `${entity.tableName.toUpperCase()}:${this.name}`,
                 ':t1': start,
                 ':t2': end
-            }
+            },
+            // ScanIndexForward: true
         };
     }
 
@@ -117,6 +122,7 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
     public storeValue (entity: E, key: string, value?: any): string {
         const attr = value || entity[key];
         const isComposite = Reflect.getMetadata('flag:composite', entity, key);
+        const isSigned = Reflect.getMetadata('flag:signed', entity, key);
 
         if (typeof attr === 'object' && isComposite) {
             let composite: string = '';
@@ -136,7 +142,7 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
         }
 
         if (typeof attr === 'number') {
-            return encode(attr);
+            return encode(attr, maxNumberPadding);
         }
 
         return attr;
@@ -145,28 +151,36 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
     public loadValue (item: any, target: E, key: string): FutureInstance<any, any> {
         const isComposite = Reflect.getMetadata('flag:composite', target, key);
 
-        if (typeof item === 'string' && (item[0] === '-' || item[0] === '+')) {
-            return Future.of(decode(item));
+        if (typeof item === 'string') {
+            const asStr = (item as string).replace(/\$/g, '');
+
+            if (asStr[0] === '-' || asStr[0] === '+') {
+                return Future.of(decode(asStr));
+            }
+
+            if (!((asStr as string)[0] === '#' && isComposite)) {
+                return Future.of(asStr);
+            }
+
+            if ((asStr as string)[0] === '#' && isComposite) {
+                return SchemaRepository.resolve(this.strategy.ctor, key)
+                    .map(SchemaRepository.getValueMapper(asStr))
+                ;
+            }
         }
 
-        if (typeof item === 'string' && !((item as string).charAt(0) === '#' && isComposite)) {
-            return Future.of(item);
-        }
+        if (typeof item[key] === 'string') {
+            const asStr = (item[key] as string).replace(/\$/g, '');
 
-        if (typeof item === 'string' && (item as string).charAt(0) === '#' && isComposite) {
-            return SchemaRepository.resolve(this.strategy.ctor, key)
-                .map(SchemaRepository.getValueMapper(item))
-            ;
-        }
+            if (asStr[0] === '#' && isComposite) {
+                return SchemaRepository.resolve(this.strategy.ctor, key)
+                    .map(SchemaRepository.getValueMapper(asStr))
+                ;
+            }
 
-        if (typeof item[key] === 'string' && (item[key] as string).charAt(0) === '#' && isComposite) {
-            return SchemaRepository.resolve(this.strategy.ctor, key)
-                .map(SchemaRepository.getValueMapper(item[key]))
-            ;
-        }
-
-        if (typeof item[key] === 'string' && (item[key][0] === '-' || item[key][0] === '+')) {
-            return Future.of(decode(item[key]));
+            if (asStr[0] === '-' || asStr[0] === '+') {
+                return Future.of(decode(asStr));
+            }
         }
 
         return Future.of(item[key]);
@@ -175,8 +189,6 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
 }
 
 AttributeTypes[AttributeTypeName] = SearchableAttribute;
-
-// TODO: numbers need to be left-padded. will need maxValue again.
 
 function encodePositive (n: number, s?: string) {
     let str = '';
@@ -201,9 +213,16 @@ function encodeNegative (n: number, s?: string) {
     return tmp;
 }
 
-function encode (n: number) {
+function encode (n: number, padTo?: number) {
     if (n === 0) { return '0'; }
-    return n < 0 ? encodeNegative(Math.abs(n)) : encodePositive(n);
+    let encoded = n < 0 ? encodeNegative(Math.abs(n)) : encodePositive(n);
+    if (padTo) {
+        while (encoded.length !== padTo) {
+           encoded = `$${encoded}`;
+        }
+    }
+
+    return encoded;
 }
 
 function invert (s: string) {
