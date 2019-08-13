@@ -9,8 +9,7 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "watch": "tsc -w",
-    "start": "node lib/index.js"
+    "watch": "tsc -w"
   },
   "devDependencies": {
     "@types/node": "^11.11.6",

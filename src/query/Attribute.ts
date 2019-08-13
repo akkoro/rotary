@@ -52,7 +52,6 @@ export class Attribute<E extends IEntity, S extends IStorageStrategy<E, IAttribu
     }
 
     public range (args: RangeArgs) {
-        // TODO: if this is a time series entity we can
         throw new Error(`${this.typeName} attributes cannot be queried by range`);
     }
 
