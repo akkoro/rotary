@@ -42,7 +42,7 @@ export class Attribute<E extends IEntity, S extends IStorageStrategy<E, IAttribu
         this.strategy = strategy;
     }
 
-    public equals (value: any) {
+    public equals (value: any): AttributeDynamoParams {
         throw new Error(`${this.typeName} attributes cannot be queried by equality`);
     }
 

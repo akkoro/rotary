@@ -5,8 +5,8 @@ import * as AWS from 'aws-sdk';
 import {query} from './query';
 import {Unique} from './query/attributes/UniqueAttribute';
 import {Searchable} from './query/attributes/SearchableAttribute';
-import {Ref, Entity, IEntity, makeEntity} from './entity';
-import {MetaRepository} from './Meta';
+import {Ref} from './query/attributes/RefAttribute';
+import {Entity, IEntity, makeEntity} from './entity';
 
 export class Config {
     public static tableName: string;
@@ -75,12 +75,17 @@ class User {
     public type: number;
 
     @Ref(Account)
-    public account: any;
+    public account: Account;
 }
 
+// const acct = makeEntity(Account)({id: 'a1'}) as Account & IEntity;
+// acct.type = 'personal';
+// acct.store().fork(console.error, console.log);
+//
 // const user = makeEntity(User)({id: 'u19'}) as User & IEntity;
 // user.type = 1;
 // user.name = { first: 'Clem', last: 'Fandango' };
+// user.account = acct;
 // user.store().fork(console.error, console.log);
 
 query(User)
