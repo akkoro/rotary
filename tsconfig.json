@@ -2,6 +2,7 @@
   "compilerOptions": {
     "outDir": "./lib",
     "declaration": true,
+    "incremental": true,
     "module": "commonjs",
     "target": "es2018",
     "inlineSourceMap": true,

@@ -1,17 +1,20 @@
-import * as Future from "fluture";
+import * as Future from 'fluture';
 
-export declare interface IEntity extends Storable {
+export declare interface IEntity extends Storable, Loadable {
     id: string;
+    timestamp?: number;
     tableName: string;
+    tableType: string;
 }
 
-// export type Attribute = string | object | undefined;
-// export type Ref = IEntity | undefined;
-
-export type EntityConstructor = { new(...args: any[]): {} };
+export type EntityConstructor = new(...args: any[]) => {};
 
 export interface Storable {
-    store: (cascade?: boolean) => Future.FutureInstance<any, any>;
+    store: () => Future.FutureInstance<any, any>;
+}
+
+export interface Loadable {
+    load: () => Future.FutureInstance<any, any>;
 }
 
 export * from './Entity';
