@@ -5,7 +5,7 @@ import {Attribute, AttributeTypes, IAttribute} from '../Attribute';
 import {FutureInstance} from 'fluture';
 
 const AttributeTypeName: string = 'Ref';
-const CompatibleStrategies: string[] = ['Relational'];
+const CompatibleStrategies: string[] = ['Relational', 'TimeSeries'];
 
 export function Ref (entity: EntityConstructor) {
     return function (target: any, key: string) {
@@ -28,6 +28,9 @@ export class RefAttribute <E extends IEntity, S extends IStorageStrategy<E, IAtt
 
     public storeItem () {
         const entity = this.strategy.target;
+        if (entity.tableType === 'TimeSeries') {
+            return undefined;
+        }
 
         let item = {
             pk: `${entity.tableName.toUpperCase()}#${entity.id}`,

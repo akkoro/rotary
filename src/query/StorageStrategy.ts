@@ -119,7 +119,7 @@ export class StorageStrategy<E extends IEntity, A extends IAttribute<E, IStorage
 
         const params = {
             RequestItems: {
-                [this.tableName]: items.map(body => {
+                [this.tableName]: items.filter(body => body !== undefined).map(body => {
                     return {
                         PutRequest: {
                             Item: body

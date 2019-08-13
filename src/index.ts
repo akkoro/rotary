@@ -78,15 +78,19 @@ class User {
 class Content {
     public content: string;
     public type: string;
+
+    @Ref(Account)
+    public account: Account;
 }
 // const content = makeEntity(Content)({id: 'c1', timestamp: Date.now()}) as Content & IEntity;
 // content.content = 'this is a post';
 // content.type = 'thought';
+// content.account = acct;
 // content.store().fork(console.error, console.log);
 
 query(Content)
     .select('id')
-    .range({start: 1565713162560, id: 'c1'})
+    .range({start: 1565713162540, id: 'c1'})
     .fork(console.error, console.log)
 ;
 

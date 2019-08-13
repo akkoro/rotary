@@ -24,7 +24,6 @@ export class TimeSeriesKeyAttribute<EntityType extends IEntity,
     }
 
     public range (args: RangeArgs): any {
-        const entity = this.strategy.target;
         const {start, end, id} = args;
 
         let op;
