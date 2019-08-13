@@ -1,5 +1,6 @@
 import {EntityConstructor, EntityStorageType, IEntity} from '../entity';
 import {IAttribute} from './Attribute';
+import {FutureInstance} from 'fluture';
 
 export interface IStorageStrategy<E extends IEntity, A extends IAttribute<E, IStorageStrategy<E, A>>> {
 
@@ -15,7 +16,7 @@ export interface IStorageStrategy<E extends IEntity, A extends IAttribute<E, ISt
     attributeMatches <Attr extends IAttribute<E, this>> (attribute: Attr, value: any);
     attributeInRange <Attr extends IAttribute<E, this>> (attribute: Attr, args: {start?: any, end?: any});
 
-    loadEntity (item: any, attribute: IAttribute<E, IStorageStrategy<E, A>>);
+    loadEntity (item: any, attribute: IAttribute<E, IStorageStrategy<E, A>>): FutureInstance<any, IEntity>;
     storeEntity (entity: E, cascade?: boolean);
 }
 

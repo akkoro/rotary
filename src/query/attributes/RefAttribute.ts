@@ -23,9 +23,7 @@ export class RefAttribute <E extends IEntity, S extends IStorageStrategy<E, IAtt
 
     public loadKeyValue (item: any): any {
         const refTarget = Reflect.getMetadata('ref:target', this.strategy.target, this.name);
-
-        // TODO: resolve entity or use proxy to fetch on property get
-        return Future.of(makeEntity(refTarget)({id: item['sk'].split('#')[1]}));
+        return makeEntity(refTarget)({id: item['sk'].split('#')[1]}).load();
     }
 
     public storeItem () {
@@ -51,7 +49,7 @@ export class RefAttribute <E extends IEntity, S extends IStorageStrategy<E, IAtt
 
     public loadValue (item: any, target: E, key: string): FutureInstance<any, any> {
         const refTarget = Reflect.getMetadata('ref:target', target, key);
-        return Future.of(makeEntity(refTarget)({id: item[key]}));
+        return makeEntity(refTarget)({id: item[key]}).load();
     }
 
 }

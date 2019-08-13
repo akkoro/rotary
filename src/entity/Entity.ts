@@ -1,9 +1,7 @@
 import * as AWS from 'aws-sdk';
-import {FutureInstance} from 'fluture';
 import * as Future from 'fluture';
 import {IEntity, EntityConstructor, Storable} from './index';
 import {Config, StorageStrategies} from '../index';
-import {MetaRepository} from '../Meta';
 import {isAttributeComposite} from './helpers';
 
 AWS.config.region = 'us-east-1';
@@ -40,14 +38,27 @@ export function Entity (type?: EntityStorageType) {
                 return Reflect.getMetadata('table:type', this.constructor);
             }
 
-            // @ts-ignore
-            public store (cascade?: boolean) {
+            public store () {
                 const strategy = new StorageStrategies[this.tableType](this.constructor, this);
                 return strategy.storeEntity(this);
 
                 // if (this.tableType === EntityStorageType.TimeSeries) {
                 //     return this.storeTimeSeries(cascade);
                 // }
+            }
+
+            public load () {
+                if (this.id) {
+                    const strategy = new StorageStrategies[this.tableType](this.constructor, this);
+                    const attr = new (strategy.getKeyAttributeConstructor())('id', strategy);
+
+                    const params = strategy.attributeEquals(attr, this.id);
+                    return Future.tryP(() => db.query(params).promise())
+                        .chain(result => strategy.loadEntity(result.Items[0], attr))
+                    ;
+                }
+
+                Future.reject('Entity.load: entity has no id');
             }
 
             public storeTimeSeries (cascade: boolean) {

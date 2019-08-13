@@ -159,7 +159,7 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
         }
 
         if (syncMetadata) {
-            MetaRepository.storeType(this.strategy.ctor, key, typeof attr);
+            MetaRepository.storeType(this.strategy.ctor, key, typeof attr).fork(console.error, console.log);
         }
 
         return attr;

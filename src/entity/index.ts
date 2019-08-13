@@ -1,6 +1,6 @@
 import * as Future from 'fluture';
 
-export declare interface IEntity extends Storable {
+export declare interface IEntity extends Storable, Loadable {
     id: string;
     tableName: string;
     tableType: string;
@@ -9,7 +9,11 @@ export declare interface IEntity extends Storable {
 export type EntityConstructor = new(...args: any[]) => {};
 
 export interface Storable {
-    store: (cascade?: boolean) => Future.FutureInstance<any, any>;
+    store: () => Future.FutureInstance<any, any>;
+}
+
+export interface Loadable {
+    load: () => Future.FutureInstance<any, any>;
 }
 
 export * from './Entity';
