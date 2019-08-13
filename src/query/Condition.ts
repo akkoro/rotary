@@ -3,7 +3,7 @@ import * as Future from 'fluture';
 import {FutureInstance} from 'fluture';
 import {Config} from '../index';
 import {attrToComposite, EntityStorageType, makeEntity} from '../entity';
-import {SchemaRepository} from '../Schema';
+import {MetaRepository} from '../Meta';
 import {Query} from './Query';
 import Key from './Key';
 import Filter from './Filter';
@@ -116,8 +116,8 @@ class Condition<EntityType, AttributeType extends ICondition<EntityType>> implem
                         Object.keys(item).filter((key) => !['pk', 'sk', 'data'].includes(key))
                             .forEach((key) => {
                                 if (typeof item[key] === 'string' && (item[key] as string).charAt(0) === '#') {
-                                    const f = SchemaRepository.resolve(this.query['ctor'], key)
-                                        .map(SchemaRepository.getValueMapper(item[key]))
+                                    const f = MetaRepository.resolveSchema(this.query['ctor'], key)
+                                        .map(MetaRepository.getSchemaValueMapper(item[key]))
                                         .map((keyValue) => {
                                             entity[key] = keyValue;
                                         });
@@ -235,8 +235,8 @@ export class SearchableAttributeCondition<EntityType> implements ICondition<Enti
         const val = type === EntityStorageType.Relational ? item['data'] : item[key];
 
         if (typeof val === 'string' && val.charAt(0) === '#') {
-            return SchemaRepository.resolve(this.query['ctor'], key)
-                .map(SchemaRepository.getValueMapper(item['data']));
+            return MetaRepository.resolveSchema(this.query['ctor'], key)
+                .map(MetaRepository.getSchemaValueMapper(item['data']));
         }
 
         return Future.of(val);

@@ -3,7 +3,7 @@ import {FutureInstance} from 'fluture';
 import * as Future from 'fluture';
 import {IEntity, EntityConstructor, Storable} from './index';
 import {Config, StorageStrategies} from '../index';
-import {SchemaRepository} from '../Schema';
+import {MetaRepository} from '../Meta';
 import {isAttributeComposite} from './helpers';
 
 AWS.config.region = 'us-east-1';

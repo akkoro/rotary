@@ -92,7 +92,7 @@ export class RelationalStorageStrategy<E extends IEntity, A extends IAttribute<E
             futures.push(value.map(keyValue => (entity[queriedByAttribute.name] = keyValue)));
         }
 
-        return Future.parallel(2, futures).chain(() => Future.of(entity));
+        return Future.parallel(4, futures).chain(() => Future.of(entity));
     }
 
     public storeEntity (entity: E) {

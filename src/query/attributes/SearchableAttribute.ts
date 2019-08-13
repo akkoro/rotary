@@ -2,7 +2,7 @@ import {FutureInstance} from 'fluture';
 import * as Future from 'fluture';
 import {IEntity} from '../../entity';
 import {Config} from '../../index';
-import {SchemaRepository} from '../../Schema';
+import {MetaRepository} from '../../Meta';
 import {Attribute, AttributeTypes, IAttribute} from '../Attribute';
 import {IStorageStrategy} from '../StorageStrategy';
 
@@ -65,14 +65,14 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
         const entity = this.strategy.target;
         let {start, end} = args;
 
-        const negStart = start <= 0;
+        const negStart = start < 0;
 
         if (typeof start === 'number') {
-            start = start > 0 ? encode(start, maxNumberPadding) : encode(Math.abs(start) + maxInt);
+            start = start >= 0 ? encode(start, maxNumberPadding) : encode(Math.abs(start) + maxInt);
         }
 
         if (typeof end === 'number') {
-            end = end > 0 ? encode(end, maxNumberPadding) : encode(Math.abs(end) + maxInt);
+            end = end >= 0 ? encode(end, maxNumberPadding) : encode(Math.abs(end) + maxInt);
         }
 
         let op;
@@ -125,6 +125,7 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
         const attr = value || entity[key];
         const isComposite = Reflect.getMetadata('flag:composite', entity, key);
         const isSigned = Reflect.getMetadata('flag:signed', entity, key);
+        const syncMetadata = Config.syncSchemaOnStore && !value;
 
         if (typeof attr === 'object' && isComposite) {
             let composite: string = '';
@@ -136,14 +137,20 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
                 composite = `${composite}#${attr[k]}`;
             });
 
-            if (Config.syncSchemaOnStore) {
-                SchemaRepository.store(this.strategy.ctor, attr, key).fork(console.error, console.log);
+            if (syncMetadata) {
+                MetaRepository.storeType(this.strategy.ctor, key, 'composite')
+                    .chain(() => MetaRepository.storeSchema(this.strategy.ctor, attr, key))
+                    .fork(console.error, console.log);
             }
 
             return composite;
         }
 
         if (typeof attr === 'number') {
+            if (syncMetadata) {
+                MetaRepository.storeType(this.strategy.ctor, key, 'number').fork(console.error, console.log);
+            }
+
             if (isSigned && attr < 0) {
                 return encode(Math.abs(attr) + maxInt, maxNumberPadding);
             }
@@ -151,43 +158,39 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
             return encode(attr, maxNumberPadding);
         }
 
+        if (syncMetadata) {
+            MetaRepository.storeType(this.strategy.ctor, key, typeof attr);
+        }
+
         return attr;
     }
 
     public loadValue (item: any, target: E, key: string): FutureInstance<any, any> {
-        const isComposite = Reflect.getMetadata('flag:composite', target, key);
         const isSigned = Reflect.getMetadata('flag:signed', target, key);
 
-        if (typeof item === 'string') {
-            const asStr = (item as string).replace(/\$/g, '');
+        const value = (typeof item === 'string') ? item :
+            (typeof item[key] === 'string') ? item[key] : undefined
+        ;
 
-            if (asStr[0] === '-' || asStr[0] === '+') {
-                return Future.of(decode(asStr, isSigned));
-            }
+        if (value) {
+            const asStr = (value as string).replace(/\$/g, '');
 
-            if (!((asStr as string)[0] === '#' && isComposite)) {
-                return Future.of(asStr);
-            }
+            return MetaRepository.resolveType(this.strategy.ctor, key)
+                .chain((type: string) => {
+                    switch (type) {
+                        case 'number':
+                            return Future.of(decode(asStr, isSigned)) as FutureInstance<any, any>;
 
-            if ((asStr as string)[0] === '#' && isComposite) {
-                return SchemaRepository.resolve(this.strategy.ctor, key)
-                    .map(SchemaRepository.getValueMapper(asStr))
-                ;
-            }
-        }
+                        case 'composite':
+                            return MetaRepository.resolveSchema(this.strategy.ctor, key)
+                                .map(MetaRepository.getSchemaValueMapper(asStr)) as FutureInstance<any, any>
+                            ;
 
-        if (typeof item[key] === 'string') {
-            const asStr = (item[key] as string).replace(/\$/g, '');
-
-            if (asStr[0] === '#' && isComposite) {
-                return SchemaRepository.resolve(this.strategy.ctor, key)
-                    .map(SchemaRepository.getValueMapper(asStr))
-                ;
-            }
-
-            if (asStr[0] === '-' || asStr[0] === '+') {
-                return Future.of(decode(asStr, isSigned));
-            }
+                        default:
+                            return Future.of(asStr) as FutureInstance<any, any>;
+                    }
+                })
+            ;
         }
 
         return Future.of(item[key]);
@@ -199,7 +202,7 @@ AttributeTypes[AttributeTypeName] = SearchableAttribute;
 
 function encodePositive (n: number, s?: string) {
     let str = '';
-    if (n > 0) { str = `${s || str}+`; }
+    if (n >= 0) { str = `${s || str}+`; }
     if (n.toString().length > 1) { str = encodePositive(n.toString().length, str); }
     return `${str}${n.toString()}`;
 }
@@ -221,7 +224,7 @@ function encodeNegative (n: number, s?: string) {
 }
 
 function encode (n: number, padTo?: number) {
-    if (n === 0) { return '0'; }
+    // if (n === 0) { return '0'; }
     let encoded = n < 0 ? encodeNegative(Math.abs(n)) : encodePositive(n);
     if (padTo) {
         while (encoded.length !== padTo) {
@@ -233,9 +236,9 @@ function encode (n: number, padTo?: number) {
 }
 
 function decode (s: string, isSigned?: boolean) {
-    if (s.charAt(0) === '0') {
-        return 0;
-    }
+    // if (s.charAt(0) === '0') {
+    //     return 0;
+    // }
 
     const ret = (slice: string) => {
         let n = parseInt(slice, 10);

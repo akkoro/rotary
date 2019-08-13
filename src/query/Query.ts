@@ -4,7 +4,7 @@ import {FutureInstance} from 'fluture';
 import {EntityConstructor, IEntity} from '../entity';
 import {EntityStorageType, makeEntity} from '../entity';
 import {Config} from '../index';
-import {SchemaRepository} from '../Schema';
+import {MetaRepository} from '../Meta';
 import {IAttribute} from './Attribute';
 import Key from './Key';
 import Filter from './Filter';
@@ -108,8 +108,8 @@ export class Query<EntityType> implements Executor<EntityType> {
                                 entity[key] = makeEntity(refTarget)(item[key]['id']);
                             } else {
                                 if (typeof item[key] === 'string' && (item[key] as string).charAt(0) === '#') {
-                                    const f = SchemaRepository.resolve(this.ctor, key)
-                                        .map(SchemaRepository.getValueMapper(item[key]))
+                                    const f = MetaRepository.resolveSchema(this.ctor, key)
+                                        .map(MetaRepository.getSchemaValueMapper(item[key]))
                                         .map(keyValue => {
                                             entity[key] = keyValue;
                                         });
@@ -163,7 +163,7 @@ export class Query2<E extends IEntity, S extends IStorageStrategy<E, A>, A exten
         }
 
         return new (class {
-            public equals (value: string) {
+            public equals (value: any) {
                 const params = strategy.attributeEquals(attr, value);
                 return Future.tryP(() => db.query(params).promise())
                     .map(result => result.Items.map(item => strategy.loadEntity(item, attr)))
@@ -180,9 +180,11 @@ export class Query2<E extends IEntity, S extends IStorageStrategy<E, A>, A exten
             }
 
             public range (args: {start?: any, end?: any}) {
+                // FIXME: this assumes the limitation of Searchable range (requiring two split queries)
+                //        for ALL types of attribute/strategy
                 const {start, end} = args;
-                if (start <= 0 && end > 0) {
-                    return Future.parallel(1, [this.range({start, end: 0}), this.range({start: 1, end})])
+                if (start < 0 && end > 0) {
+                    return Future.both(this.range({start, end: -1}), this.range({start: 0, end}))
                         .map(r => {
                             const ret: any[] = [];
                             r.forEach((searchResult: any[]) => {
