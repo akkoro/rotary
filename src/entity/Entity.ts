@@ -1,11 +1,6 @@
-import * as AWS from 'aws-sdk';
 import * as Future from 'fluture';
 import {IEntity, EntityConstructor, Storable} from './index';
 import {Config, StorageStrategies} from '../index';
-import {isAttributeComposite} from './helpers';
-
-AWS.config.region = 'us-east-1';
-const db = new AWS.DynamoDB.DocumentClient();
 
 export enum EntityStorageType {
     Relational = 'Relational',
@@ -49,7 +44,7 @@ export function Entity (type?: EntityStorageType) {
                     const attr = new (strategy.getKeyAttributeConstructor())('id', strategy);
 
                     const params = strategy.attributeEquals(attr, this.id);
-                    return Future.tryP(() => db.query(params).promise())
+                    return Future.tryP(() => Config.db.query(params).promise())
                         .chain(result => strategy.loadEntity(result.Items[0], attr))
                     ;
                 }
@@ -57,23 +52,6 @@ export function Entity (type?: EntityStorageType) {
                 Future.reject('Entity.load: entity has no id');
             }
         };
-    };
-}
-
-/* name decorators */
-
-export function Unique (target: any, key: string) {
-    Reflect.defineMetadata('name:unique', key, target, key);
-}
-
-export function Searchable (target: any, key: string) {
-    Reflect.defineMetadata('name:searchable', key, target, key);
-}
-
-export function Ref (type: EntityConstructor) {
-    return function (target: any, key: string) {
-        Reflect.defineMetadata('name:ref', key, target, key);
-        Reflect.defineMetadata('ref:target', type, target, key);
     };
 }
 
@@ -93,94 +71,4 @@ export function makeEntity (target: any) {
 
         return t;
     };
-}
-
-/* internal helpers */
-
-function getRootItem (entity: IEntity) {
-    let item = {
-        pk: `${entity.tableName.toUpperCase()}#${entity.id}`,
-        sk: entity.tableName.toUpperCase(),
-        data: '$nil'
-    };
-
-    Object.keys(entity).filter(key => key !== 'id').forEach(key => {
-        item = {
-            ...item,
-            [key]: isAttributeComposite(entity, key) ? attrToComposite(entity[key]) : entity[key]
-        };
-    });
-
-    return item;
-}
-
-function getUniqueItem (entity: IEntity, attr: string) {
-    if (typeof this[attr] === 'object') {
-        throw new Error('unique attributes must not be composite');
-    }
-
-    let item = {
-        pk: `${entity.tableName.toUpperCase()}#${entity.id}`,
-        sk: this[attr],
-        data: '$nil'
-    };
-
-    Object.keys(this).filter(key => key !== 'id' && key !== attr).forEach(key => {
-        item = {
-            ...item,
-            [key]: typeof this[key] === 'object' ? attrToComposite(this[key]) : this[key]
-        };
-    });
-
-    return item;
-}
-
-function getRefItem (entity: IEntity, attr: string) {
-    let item = {
-        pk: `${entity.tableName.toUpperCase()}#${entity.id}`,
-        sk: `${entity[attr].tableName.toUpperCase()}#${entity[attr].id}`,
-        data: `${entity.tableName.toUpperCase()}#${entity.id}`
-    };
-
-    Object.keys(entity).filter(key => key !== 'id' && key !== attr).forEach(key => {
-        item = {
-            ...item,
-            [key]: typeof entity[key] === 'object' ? attrToComposite(entity[key]) : entity[key]
-        };
-    });
-
-    return item;
-}
-
-function getSearchableItem (entity: IEntity, attr: string) {
-    let item = {
-        pk: `${entity.tableName.toUpperCase()}#${entity.id}`,
-        sk: `${entity.tableName.toUpperCase()}:${attr}`,
-        data: typeof entity[attr] === 'object' ? attrToComposite(entity[attr]) : entity[attr]
-    };
-
-    Object.keys(entity).filter(key => key !== 'id' && key !== attr).forEach(key => {
-        item = {
-            ...item,
-            [key]: typeof entity[key] === 'object' ? attrToComposite(entity[key]) : entity[key]
-        };
-    });
-
-    return item;
-}
-
-/* attribute to string */
-
-export function attrToComposite (attr: object): string {
-    let composite: string = '';
-    Object.keys(attr).reverse().forEach(key => {
-        // @ts-ignore
-        if (typeof attr[key] === 'object') {
-            throw new Error('cannot store nested composite attributes');
-        }
-
-        // @ts-ignore
-        composite = `${composite}#${attr[key]}`;
-    });
-    return composite;
 }
