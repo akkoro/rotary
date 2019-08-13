@@ -1,6 +1,7 @@
 import * as Future from 'fluture';
 import {FutureInstance} from 'fluture';
 import {IEntity} from '../entity';
+import {RangeArgs} from './Query';
 import {IStorageStrategy} from './StorageStrategy';
 import {getAttributeType} from './util';
 
@@ -23,7 +24,7 @@ export interface IAttribute<E extends IEntity, S extends IStorageStrategy<E, IAt
     // TODO: narrow return types
     equals (value: any): AttributeDynamoParams;
     match (value: any): any;
-    range (args: {start?: any, end?: any}): any;
+    range (args: RangeArgs): any;
 
     loadKeyValue (item: any): any;
     storeItem ();
@@ -50,7 +51,7 @@ export class Attribute<E extends IEntity, S extends IStorageStrategy<E, IAttribu
         throw new Error(`${this.typeName} attributes cannot be queried by match`);
     }
 
-    public range (args: {start?: any, end?: any}) {
+    public range (args: RangeArgs) {
         // TODO: if this is a time series entity we can
         throw new Error(`${this.typeName} attributes cannot be queried by range`);
     }

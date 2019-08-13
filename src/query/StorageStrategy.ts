@@ -1,9 +1,8 @@
-import * as Future from "fluture";
+import * as Future from 'fluture';
 import {EntityConstructor, EntityStorageType, IEntity} from '../entity';
-import {Config} from '../index';
+import {Config, RangeArgs} from '../index';
 import {AttributeConstructor, IAttribute} from './Attribute';
 import {FutureInstance} from 'fluture';
-import {TimeSeriesKeyAttribute} from './strategies/TimeSeriesStorageStrategy';
 import {getAttributeType} from './util';
 
 export interface IStorageStrategy<E extends IEntity, A extends IAttribute<E, IStorageStrategy<E, A>>> {
@@ -18,7 +17,7 @@ export interface IStorageStrategy<E extends IEntity, A extends IAttribute<E, ISt
 
     attributeEquals <Attr extends IAttribute<E, this>> (attribute: Attr, value: string);
     attributeMatches <Attr extends IAttribute<E, this>> (attribute: Attr, value: any);
-    attributeInRange <Attr extends IAttribute<E, this>> (attribute: Attr, args: {start?: any, end?: any});
+    attributeInRange <Attr extends IAttribute<E, this>> (attribute: Attr, args: RangeArgs);
 
     loadEntity (item: any, queriedByAttribute: IAttribute<E, IStorageStrategy<E, A>>): FutureInstance<any, IEntity>;
     storeEntity (entity: E);
@@ -63,7 +62,7 @@ export class StorageStrategy<E extends IEntity, A extends IAttribute<E, IStorage
         };
     }
 
-    public attributeInRange <S extends IStorageStrategy<E, A>, A extends IAttribute<E, S>> (attribute: A, args: {start?: any, end?: any}) {
+    public attributeInRange <S extends IStorageStrategy<E, A>, A extends IAttribute<E, S>> (attribute: A, args: RangeArgs) {
         return {
             TableName: this.tableName,
             IndexName: attribute.indexName,

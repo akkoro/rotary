@@ -129,6 +129,8 @@ export class Query<EntityType> implements Executor<EntityType> {
     }
 }
 
+export interface RangeArgs { start?: any; end?: any; id?: any; }
+
 export class Query2<E extends IEntity, S extends IStorageStrategy<E, A>, A extends IAttribute<E, S>> {
 
     private readonly target: E = null;
@@ -179,12 +181,12 @@ export class Query2<E extends IEntity, S extends IStorageStrategy<E, A>, A exten
                 ;
             }
 
-            public range (args: {start?: any, end?: any}) {
+            public range (args: RangeArgs) {
                 // FIXME: this assumes the limitation of Searchable range (requiring two split queries)
                 //        for ALL types of attribute/strategy
-                const {start, end} = args;
+                const {start, end, id} = args;
                 if (start < 0 && end > 0) {
-                    return Future.both(this.range({start, end: -1}), this.range({start: 0, end}))
+                    return Future.both(this.range({start, end: -1, id}), this.range({start: 0, end, id}))
                         .map(r => {
                             const ret: any[] = [];
                             r.forEach((searchResult: any[]) => {

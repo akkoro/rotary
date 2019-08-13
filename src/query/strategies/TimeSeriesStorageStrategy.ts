@@ -1,6 +1,6 @@
 import * as Future from 'fluture';
 import {EntityConstructor, IEntity, makeEntity} from '../../entity';
-import {Config} from '../../index';
+import {Config, RangeArgs} from '../../index';
 import {StorageStrategies} from '../Query';
 import {Attribute, IAttribute} from '../Attribute';
 import {IStorageStrategy, StorageStrategy} from '../StorageStrategy';
@@ -20,6 +20,34 @@ export class TimeSeriesKeyAttribute<EntityType extends IEntity,
             ExpressionAttributeValues: {
                 ':pk': value
             }
+        };
+    }
+
+    public range (args: RangeArgs): any {
+        const entity = this.strategy.target;
+        const {start, end, id} = args;
+
+        let op;
+        if (start && end) {
+            op = '#sk between :t1 and :t2';
+        } else if (start && !end) {
+            op = '#sk >= :t1';
+        } else if (!start && end) {
+            op = '#sk <= :t2';
+        }
+
+        return {
+            KeyConditionExpression: `#pk = :pk and ${op}`,
+            ExpressionAttributeNames: {
+                '#pk': 'pk',
+                '#sk': 'sk'
+            },
+            ExpressionAttributeValues: {
+                ':pk': id,
+                ':t1': start,
+                ':t2': end
+            },
+            // ScanIndexForward: true
         };
     }
 

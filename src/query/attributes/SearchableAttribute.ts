@@ -1,7 +1,7 @@
 import {FutureInstance} from 'fluture';
 import * as Future from 'fluture';
 import {IEntity} from '../../entity';
-import {Config} from '../../index';
+import {Config, RangeArgs} from '../../index';
 import {MetaRepository} from '../../Meta';
 import {Attribute, AttributeTypes, IAttribute} from '../Attribute';
 import {IStorageStrategy} from '../StorageStrategy';
@@ -61,7 +61,7 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
         };
     }
 
-    public range (args: {start?: any, end?: any}): any {
+    public range (args: RangeArgs): any {
         const entity = this.strategy.target;
         let {start, end} = args;
 

@@ -86,7 +86,7 @@ class Content {
 
 query(Content)
     .select('id')
-    .equals('c1')
+    .range({start: 1565713162560, id: 'c1'})
     .fork(console.error, console.log)
 ;
 
