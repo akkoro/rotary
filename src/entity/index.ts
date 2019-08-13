@@ -2,6 +2,7 @@ import * as Future from 'fluture';
 
 export declare interface IEntity extends Storable, Loadable {
     id: string;
+    timestamp?: number;
     tableName: string;
     tableType: string;
 }

@@ -1,12 +1,13 @@
 import 'reflect-metadata';
 import './query/strategies/RelationalStorageStrategy';
+import './query/strategies/TimeSeriesStorageStrategy';
 import './query/attributes/UniqueAttribute';
 import * as AWS from 'aws-sdk';
 import {query} from './query';
 import {Unique} from './query/attributes/UniqueAttribute';
 import {Searchable} from './query/attributes/SearchableAttribute';
 import {Ref} from './query/attributes/RefAttribute';
-import {Entity, IEntity, makeEntity} from './entity';
+import {Entity, EntityStorageType, IEntity, makeEntity} from './entity';
 
 export class Config {
     public static tableName: string;
@@ -25,21 +26,6 @@ export * from './Meta';
 Config.tableName = 'rddb';
 Config.syncSchemaOnStore = true; // Disable sync in production
 Config.enableDebugLogging = true;
-
-// @Entity(EntityStorageType.TimeSeries)
-// class Content {
-//     content: string;
-//
-//     @Searchable
-//     type: string;
-// }
-
-// const c1 = makeEntity(Content)('c1', Date.now());
-// c1.content = 'this is my content!';
-// c1.type = 'T1';
-// query(Content).with('type').equals('T1').exec()
-//     .fork(console.error, console.log);
-// query(User).select('name').match({last: 'Fandango'}).fork(console.error, console.log);
 
 @Entity()
 class Account {
@@ -88,8 +74,24 @@ class User {
 // user.account = acct;
 // user.store().fork(console.error, console.log);
 
-query(User)
-    .select('name')
-    .match({last: 'Fandango'})
+@Entity(EntityStorageType.TimeSeries)
+class Content {
+    public content: string;
+    public type: string;
+}
+// const content = makeEntity(Content)({id: 'c1', timestamp: Date.now()}) as Content & IEntity;
+// content.content = 'this is a post';
+// content.type = 'thought';
+// content.store().fork(console.error, console.log);
+
+query(Content)
+    .select('id')
+    .equals('c1')
     .fork(console.error, console.log)
 ;
+
+// query(User)
+//     .select('name')
+//     .match({last: 'Fandango'})
+//     .fork(console.error, console.log)
+// ;

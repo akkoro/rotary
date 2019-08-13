@@ -1,6 +1,10 @@
+import * as Future from "fluture";
 import {EntityConstructor, EntityStorageType, IEntity} from '../entity';
-import {IAttribute} from './Attribute';
+import {Config} from '../index';
+import {AttributeConstructor, IAttribute} from './Attribute';
 import {FutureInstance} from 'fluture';
+import {TimeSeriesKeyAttribute} from './strategies/TimeSeriesStorageStrategy';
+import {getAttributeType} from './util';
 
 export interface IStorageStrategy<E extends IEntity, A extends IAttribute<E, IStorageStrategy<E, A>>> {
 
@@ -9,18 +13,18 @@ export interface IStorageStrategy<E extends IEntity, A extends IAttribute<E, ISt
     readonly ctor: EntityConstructor;
     readonly target: E;
 
-    makeEntity (item: any);
-    getKeyAttributeConstructor ();
+    makeEntity (item: any): IEntity;
+    getKeyAttributeConstructor (): AttributeConstructor;
 
     attributeEquals <Attr extends IAttribute<E, this>> (attribute: Attr, value: string);
     attributeMatches <Attr extends IAttribute<E, this>> (attribute: Attr, value: any);
     attributeInRange <Attr extends IAttribute<E, this>> (attribute: Attr, args: {start?: any, end?: any});
 
-    loadEntity (item: any, attribute: IAttribute<E, IStorageStrategy<E, A>>): FutureInstance<any, IEntity>;
-    storeEntity (entity: E, cascade?: boolean);
+    loadEntity (item: any, queriedByAttribute: IAttribute<E, IStorageStrategy<E, A>>): FutureInstance<any, IEntity>;
+    storeEntity (entity: E);
 }
 
-export class StorageStrategy<E extends IEntity> {
+export class StorageStrategy<E extends IEntity, A extends IAttribute<E, IStorageStrategy<E, A>>> {
 
     public readonly tableName: string;
     public readonly storageType: string;
@@ -65,6 +69,68 @@ export class StorageStrategy<E extends IEntity> {
             IndexName: attribute.indexName,
             ...attribute.range(args)
         };
+    }
+
+    public makeEntity (item: any): IEntity {
+        throw new Error('makeEntity: StorageStrategy must be subclassed');
+    }
+
+    public getKeyAttributeConstructor (): AttributeConstructor {
+        throw new Error('getKeyAttributeConstructor: StorageStrategy must be subclassed');
+    }
+
+    public loadEntity (item: any, queriedByAttribute: IAttribute<E, IStorageStrategy<E, A>>) {
+        const futures: Array<FutureInstance<any, any>> = [];
+        const entity = this.makeEntity(item);
+
+        Object.keys(item).filter((key) => !['pk', 'sk', 'data'].includes(key))
+            .forEach(key => {
+                const attr = getAttributeType(entity, key, this);
+                if (attr) {
+                    futures.push(attr.loadValue(item, entity, key).map(v => (entity[key] = v)));
+                } else {
+                    entity[key] = item[key];
+                }
+            });
+
+        // Key values are stored differently for each attribute type
+        const value = queriedByAttribute.loadKeyValue(item);
+        if (value) {
+            futures.push(value.map(keyValue => (entity[queriedByAttribute.name] = keyValue)));
+        }
+
+        return Future.parallel(4, futures).chain(() => Future.of(entity));
+    }
+
+    public storeEntity (entity: E) {
+        if (entity['tableType'] !== this.storageType) {
+            throw new Error(`attempted to store entity type ${entity.tableName} with ${this.storageType} strategy`);
+        }
+
+        const items: object[] = [];
+
+        // For each attribute in the entity
+        Object.keys(entity).forEach(key => {
+            // Store attribute items if specified
+            const attr = getAttributeType(entity, key, this);
+            if (attr) {
+                items.push(attr.storeItem());
+            }
+        });
+
+        const params = {
+            RequestItems: {
+                [this.tableName]: items.map(body => {
+                    return {
+                        PutRequest: {
+                            Item: body
+                        }
+                    };
+                })
+            }
+        };
+
+        return Future.tryP(() => Config.db.batchWrite(params).promise());
     }
 
 }

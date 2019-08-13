@@ -41,10 +41,6 @@ export function Entity (type?: EntityStorageType) {
             public store () {
                 const strategy = new StorageStrategies[this.tableType](this.constructor, this);
                 return strategy.storeEntity(this);
-
-                // if (this.tableType === EntityStorageType.TimeSeries) {
-                //     return this.storeTimeSeries(cascade);
-                // }
             }
 
             public load () {
@@ -59,31 +55,6 @@ export function Entity (type?: EntityStorageType) {
                 }
 
                 Future.reject('Entity.load: entity has no id');
-            }
-
-            public storeTimeSeries (cascade: boolean) {
-                if (this.tableType === EntityStorageType.Relational) {
-                    throw new Error('attempted to store relational entity with storeTimeSeries');
-                }
-
-                let item: any = {
-                    pk: this.id,
-                    sk: this.timestamp
-                };
-
-                Object.keys(this).filter(key => key !== 'id' && key !== 'timestamp').forEach(key => {
-                    item = {
-                        ...item,
-                        [key]: isAttributeComposite(this, key) ? attrToComposite(this[key]) : this[key]
-                    };
-                });
-
-                const params = {
-                    TableName: `${Config.tableName}-${this.tableName.toUpperCase()}`,
-                    Item: item
-                };
-
-                return Future.tryP(() => db.put(params).promise());
             }
         };
     };
