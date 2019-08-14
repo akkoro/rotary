@@ -6,7 +6,9 @@
   "files": [
     "lib"
   ],
-  "license": "MIT",
+  "author": "xlem",
+  "license": "AGPL-3.0-only",
+  "repository": "https://https://github.com/akkoro/rotary",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w"
