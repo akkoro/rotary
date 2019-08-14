@@ -1,6 +1,7 @@
 Rotary
 ======
 *DynamoDB with rules.*  
+`yarn add @akkoro/rotary`  
 
 Rotary is an open-source library for AWS DynamoDB queries. It aims to
 implement a set of constraints which allow data to be stored
@@ -11,8 +12,6 @@ It is written in TypeScript, and builds on both OO and FP principles.
 In particular, it is worth noting that Futures are used instead of Promises.
 All future-returning APIs can be converted to promises by calling `.promise()` instead of `.fork()`.
 
-Install with  
-`yarn add @akkoro/rotary`
 ----------
 
 # Overview
