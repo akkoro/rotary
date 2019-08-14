@@ -33,17 +33,7 @@ export class StorageStrategy<E extends IEntity, A extends IAttribute<E, IStorage
     constructor (ctor: EntityConstructor, target: E) {
         this.ctor = ctor;
         this.target = target;
-
-        this.storageType = this.target['tableType'] as EntityStorageType;
-        // switch (this.storageType) {
-        //     case EntityStorageType.Relational:
-        //         this.tableName = Config.tableName;
-        //         break;
-        //
-        //     case EntityStorageType.TimeSeries:
-        //         this.tableName = `${Config.tableName}-${this.target['tableName'].toUpperCase()}`;
-        //         break;
-        // }
+        this.storageType = this.target.tableType as EntityStorageType;
     }
 
     public attributeEquals <S extends IStorageStrategy<E, A>, A extends IAttribute<E, S>> (attribute: A, value: string) {
