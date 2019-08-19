@@ -173,21 +173,20 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
         ;
 
         if (value) {
-            const asStr = (value as string).replace(/\$/g, '');
-
             return MetaRepository.resolveType(this.strategy.ctor, key)
                 .chain((type: string) => {
                     switch (type) {
                         case 'number':
+                            const asStr = (value as string).replace(/\$/g, '');
                             return Future.of(decode(asStr, isSigned)) as FutureInstance<any, any>;
 
                         case 'composite':
                             return MetaRepository.resolveSchema(this.strategy.ctor, key)
-                                .map(MetaRepository.getSchemaValueMapper(asStr)) as FutureInstance<any, any>
+                                .map(MetaRepository.getSchemaValueMapper(value)) as FutureInstance<any, any>
                             ;
 
                         default:
-                            return Future.of(asStr) as FutureInstance<any, any>;
+                            return Future.of(value) as FutureInstance<any, any>;
                     }
                 })
             ;
@@ -200,32 +199,15 @@ export class SearchableAttribute <E extends IEntity, S extends IStorageStrategy<
 
 AttributeTypes[AttributeTypeName] = SearchableAttribute;
 
-function encodePositive (n: number, s?: string) {
+function encodeImpl (n: number, s?: string) {
     let str = '';
     if (n >= 0) { str = `${s || str}+`; }
-    if (n.toString().length > 1) { str = encodePositive(n.toString().length, str); }
+    if (n.toString().length > 1) { str = encodeImpl(n.toString().length, str); }
     return `${str}${n.toString()}`;
 }
 
-function encodeNegative (n: number, s?: string) {
-    let str = '';
-    if (n > 0) { str = `${s || str}-`; }
-    if (n.toString().length > 1) { str = encodeNegative(n.toString().length, str); }
-    str = `${str}${n.toString()}`;
-
-    let tmp = '';
-    for (const c of str) {
-        if (c === '-') { tmp = `${tmp}${c}`; } else {
-            tmp = `${tmp}${(9 - parseInt(c, 10)).toString()}`;
-        }
-    }
-
-    return tmp;
-}
-
 function encode (n: number, padTo?: number) {
-    // if (n === 0) { return '0'; }
-    let encoded = n < 0 ? encodeNegative(Math.abs(n)) : encodePositive(n);
+    let encoded = encodeImpl(n);
     if (padTo) {
         while (encoded.length !== padTo) {
            encoded = `$${encoded}`;
@@ -236,10 +218,6 @@ function encode (n: number, padTo?: number) {
 }
 
 function decode (s: string, isSigned?: boolean) {
-    // if (s.charAt(0) === '0') {
-    //     return 0;
-    // }
-
     const ret = (slice: string) => {
         let n = parseInt(slice, 10);
         if (isSigned && n > (maxInt / 2)) {
