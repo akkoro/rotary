@@ -19,7 +19,7 @@
     "typescript": "^3.4.5"
   },
   "dependencies": {
-    "aws-sdk": "^2.427.0",
+    "aws-sdk": "^2.814.0",
     "fluture": "^11.0.1",
     "md5": "^2.2.1",
     "reflect-metadata": "^0.1.13"
